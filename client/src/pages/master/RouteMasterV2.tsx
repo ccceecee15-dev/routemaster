@@ -63,7 +63,6 @@ type RoutePriority = "Primary" | "Secondary";
 type TransportMode = "Company Fleet" | "LTL";
 type TempControlled = "Yes" | "No";
 type OrderDay = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
-
 interface V2RouteRecord {
   id: number;
   vendor: string;
@@ -80,6 +79,8 @@ interface V2RouteRecord {
   state: string;
   orderDays: OrderDay[];
   leadTimeWeeks: number;
+  keyLineSafetyStock: number;
+  coreLineSafetyStock: number;
   transportMode: TransportMode;
   tempControlled: TempControlled;
   routeStatus: RouteStatus;
@@ -89,6 +90,7 @@ interface V2RouteRecord {
 
 type RouteForm = Omit<V2RouteRecord, "id" | "modifiedDate">;
 type SortKey = "vendor" | "merchArea" | "storeNumber" | "storeName" | "orderType" | "orderDays" | "leadTimeWeeks";
+type StoreSortKey = "store" | "currentLeadTime" | "updatedLeadTime" | "currentKeySafetyStock" | "updatedKeySafetyStock" | "currentCoreSafetyStock" | "updatedCoreSafetyStock" | "orderingDays" | "property" | "format" | "state";
 type SortDir = "asc" | "desc";
 type ValidationFilter = "duplicate" | "missing-vendor" | "missing-area" | "missing-order-type" | "missing-calendar" | "missing-warehouse" | "missing-lead-time" | "inactive" | "recent";
 
@@ -107,7 +109,7 @@ const FORMATS = ["Large", "Medium", "Small", "Express"];
 const ORDER_DAYS: OrderDay[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_SHORT: Record<OrderDay, string> = { Monday: "Mon", Tuesday: "Tue", Wednesday: "Wed", Thursday: "Thu", Friday: "Fri", Saturday: "Sat", Sunday: "Sun" };
 
-const MOCK_V2_ROUTES: V2RouteRecord[] = [
+const MOCK_V2_ROUTES: V2RouteRecord[] = ([
   { id: 1, vendor: "McLane", category: "Food", merchArea: "Snacks", orderType: "Warehouse BULK", warehouse: "RDC – Las Vegas", warehouseNumber: "950", storeNumber: "S101", storeName: "Las Vegas Strip", property: "Las Vegas Strip", format: "Large", city: "Las Vegas", state: "NV", orderDays: ["Monday"], leadTimeWeeks: 2, transportMode: "Company Fleet", tempControlled: "No", routeStatus: "Active", routePriority: "Primary", modifiedDate: "2026-09-18" },
   { id: 2, vendor: "McLane", category: "Food", merchArea: "Snacks", orderType: "Warehouse BULK", warehouse: "RDC – Las Vegas", warehouseNumber: "950", storeNumber: "S102", storeName: "Henderson Galleria", property: "Las Vegas Strip", format: "Medium", city: "Henderson", state: "NV", orderDays: ["Monday"], leadTimeWeeks: 2, transportMode: "Company Fleet", tempControlled: "No", routeStatus: "Active", routePriority: "Primary", modifiedDate: "2026-09-16" },
   { id: 3, vendor: "McLane", category: "Food", merchArea: "Snacks", orderType: "Warehouse BULK", warehouse: "RDC – Las Vegas", warehouseNumber: "950", storeNumber: "S103", storeName: "North Las Vegas Center", property: "Las Vegas Strip", format: "Large", city: "North Las Vegas", state: "NV", orderDays: ["Wednesday"], leadTimeWeeks: 2, transportMode: "Company Fleet", tempControlled: "No", routeStatus: "Active", routePriority: "Primary", modifiedDate: "2026-09-15" },
@@ -124,12 +126,16 @@ const MOCK_V2_ROUTES: V2RouteRecord[] = [
   { id: 14, vendor: "Vendor ABC", category: "Apparel", merchArea: "Womens Knitwear", orderType: "Warehouse BULK", warehouse: "RDC – Chicago", warehouseNumber: "831", storeNumber: "S401", storeName: "Orlando Premium Outlets", property: "Chicago Downtown", format: "Medium", city: "Chicago", state: "IL", orderDays: ["Monday"], leadTimeWeeks: 3, transportMode: "LTL", tempControlled: "No", routeStatus: "Active", routePriority: "Primary", modifiedDate: "2026-08-22" },
   { id: 15, vendor: "Regional Snacks Vendor", category: "Food", merchArea: "Snacks", orderType: "DSD", warehouse: "", warehouseNumber: "", storeNumber: "S310", storeName: "Dallas Galleria", property: "Dallas Airport", format: "Medium", city: "Dallas", state: "TX", orderDays: ["Friday"], leadTimeWeeks: 1, transportMode: "LTL", tempControlled: "No", routeStatus: "Active", routePriority: "Secondary", modifiedDate: "2026-08-30" },
   { id: 16, vendor: "", category: "Books", merchArea: "", orderType: "DSD", warehouse: "", warehouseNumber: "", storeNumber: "S409", storeName: "St. Louis Galleria", property: "Midwest", format: "Express", city: "Richmond Heights", state: "MO", orderDays: [], leadTimeWeeks: 0, transportMode: "LTL", tempControlled: "No", routeStatus: "Active", routePriority: "Secondary", modifiedDate: "2026-09-20" },
-];
+] satisfies Omit<V2RouteRecord, "keyLineSafetyStock" | "coreLineSafetyStock">[]).map((route) => ({
+  ...route,
+  keyLineSafetyStock: 20,
+  coreLineSafetyStock: 10,
+}));
 
 const EMPTY_FORM: RouteForm = {
   vendor: "", category: "Food", merchArea: "", orderType: "DSD", warehouse: "", warehouseNumber: "",
   storeNumber: "", storeName: "", property: "", format: "Medium", city: "", state: "", orderDays: [],
-  leadTimeWeeks: 1, transportMode: "Company Fleet", tempControlled: "No", routeStatus: "Active", routePriority: "Primary",
+  leadTimeWeeks: 1, keyLineSafetyStock: 0, coreLineSafetyStock: 0, transportMode: "Company Fleet", tempControlled: "No", routeStatus: "Active", routePriority: "Primary",
 };
 
 function warehouseLabel(row: Pick<V2RouteRecord, "warehouse" | "warehouseNumber" | "orderType">) {
@@ -171,6 +177,19 @@ function SortHeader({ label, column, active, direction, onClick, className = "" 
   );
 }
 
+function StoreSortHeader({ label, column, active, direction, onClick }: {
+  label: string; column: StoreSortKey; active: boolean; direction: SortDir; onClick: (column: StoreSortKey) => void;
+}) {
+  return (
+    <th className="px-3 py-2">
+      <button type="button" onClick={() => onClick(column)} className="flex w-full items-center justify-between gap-1 text-left">
+        <span>{label}</span>
+        {active ? direction === "asc" ? <ArrowUp className="h-3 w-3 text-blue-700" /> : <ArrowDown className="h-3 w-3 text-blue-700" /> : <ArrowUpDown className="h-3 w-3 text-slate-300" />}
+      </button>
+    </th>
+  );
+}
+
 function FormField({ label, children, className = "" }: { label: React.ReactNode; children: React.ReactNode; className?: string }) {
   return <div className={cn("min-w-0 space-y-1.5", className)}><label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</label>{children}</div>;
 }
@@ -198,6 +217,8 @@ export default function RouteMasterV2() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [storeSortKey, setStoreSortKey] = useState<StoreSortKey | null>(null);
+  const [storeSortDir, setStoreSortDir] = useState<SortDir>("asc");
   const [validationOpen, setValidationOpen] = useState(true);
   const [validationFilter, setValidationFilter] = useState<ValidationFilter | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -213,6 +234,11 @@ export default function RouteMasterV2() {
   const [ruleFormat, setRuleFormat] = useState("all");
   const [storeStateFilter, setStoreStateFilter] = useState("all");
   const [defaultLeadTime, setDefaultLeadTime] = useState(2);
+  const [defaultKeyLineSafetyStock, setDefaultKeyLineSafetyStock] = useState(20);
+  const [defaultCoreLineSafetyStock, setDefaultCoreLineSafetyStock] = useState(10);
+  const [storeLeadTimeOverrides, setStoreLeadTimeOverrides] = useState<Record<number, number>>({});
+  const [storeKeySafetyStockOverrides, setStoreKeySafetyStockOverrides] = useState<Record<number, number>>({});
+  const [storeCoreSafetyStockOverrides, setStoreCoreSafetyStockOverrides] = useState<Record<number, number>>({});
   const [storeSearch, setStoreSearch] = useState("");
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<number>>(new Set());
   const [activeScreen, setActiveScreen] = useState<"overview" | "rule-setup">("overview");
@@ -282,6 +308,8 @@ export default function RouteMasterV2() {
     return Array.from(map.values());
   }, [routes]);
 
+  const ruleSummaryDays = ruleDays.length ? ruleDays.map((day) => DAY_SHORT[day]).join(" + ") : "No days selected";
+
   const applicableRows = useMemo(() => storeOptions.filter((row) => {
     if (ruleProperty !== "all" && row.property !== ruleProperty) return false;
     if (ruleFormat !== "all" && row.format !== ruleFormat) return false;
@@ -291,15 +319,35 @@ export default function RouteMasterV2() {
 
   const visibleApplicableRows = useMemo(() => {
     const query = storeSearch.trim().toLowerCase();
-    return applicableRows.filter((row) => !query || [row.storeNumber, row.storeName, row.property, row.format, row.city, row.state].join(" ").toLowerCase().includes(query));
-  }, [applicableRows, storeSearch]);
+    const filteredRows = applicableRows.filter((row) => !query || [row.storeNumber, row.storeName, row.property, row.format, row.city, row.state].join(" ").toLowerCase().includes(query));
+    if (!storeSortKey) return filteredRows;
+    return [...filteredRows].sort((a, b) => {
+      const values: Record<StoreSortKey, [string | number, string | number]> = {
+        store: [`${a.storeNumber} ${a.storeName}`, `${b.storeNumber} ${b.storeName}`],
+        currentLeadTime: [a.leadTimeWeeks, b.leadTimeWeeks],
+        updatedLeadTime: [storeLeadTimeOverrides[a.id] ?? defaultLeadTime, storeLeadTimeOverrides[b.id] ?? defaultLeadTime],
+        currentKeySafetyStock: [a.keyLineSafetyStock, b.keyLineSafetyStock],
+        updatedKeySafetyStock: [storeKeySafetyStockOverrides[a.id] ?? defaultKeyLineSafetyStock, storeKeySafetyStockOverrides[b.id] ?? defaultKeyLineSafetyStock],
+        currentCoreSafetyStock: [a.coreLineSafetyStock, b.coreLineSafetyStock],
+        updatedCoreSafetyStock: [storeCoreSafetyStockOverrides[a.id] ?? defaultCoreLineSafetyStock, storeCoreSafetyStockOverrides[b.id] ?? defaultCoreLineSafetyStock],
+        orderingDays: [ruleSummaryDays, ruleSummaryDays],
+        property: [a.property, b.property],
+        format: [a.format, b.format],
+        state: [a.state, b.state],
+      };
+      const [left, right] = values[storeSortKey];
+      const comparison = typeof left === "number" && typeof right === "number"
+        ? left - right
+        : String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
+      return storeSortDir === "asc" ? comparison : -comparison;
+    });
+  }, [applicableRows, defaultCoreLineSafetyStock, defaultKeyLineSafetyStock, defaultLeadTime, ruleSummaryDays, storeCoreSafetyStockOverrides, storeKeySafetyStockOverrides, storeLeadTimeOverrides, storeSearch, storeSortDir, storeSortKey]);
 
   const selectedStores = useMemo(() => storeOptions.filter((row) => selectedStoreIds.has(row.id)), [selectedStoreIds, storeOptions]);
   const stateOptions = useMemo(() => Array.from(new Set(storeOptions.map((row) => row.state).filter(Boolean))).sort(), [storeOptions]);
   const selectedCount = storeOptions.filter((row) => selectedStoreIds.has(row.id)).length;
   const selectedVisibleCount = visibleApplicableRows.filter((row) => selectedStoreIds.has(row.id)).length;
   const storeTotal = ruleOrderType === "Warehouse BULK" ? 716 : 86;
-  const ruleSummaryDays = ruleDays.length ? ruleDays.map((day) => DAY_SHORT[day]).join(" + ") : "No days selected";
   const routeSummaryWarehouse = ruleOrderType === "Warehouse BULK" ? ruleWarehouse.replace("RDC – ", "RDC ") : "Direct to Store";
   const kpis = useMemo(() => ({
     assignments: routes.length,
@@ -323,6 +371,14 @@ export default function RouteMasterV2() {
     else { setSortKey(column); setSortDir("asc"); }
   }
 
+  function handleStoreSort(column: StoreSortKey) {
+    if (storeSortKey === column) setStoreSortDir((current) => current === "asc" ? "desc" : "asc");
+    else {
+      setStoreSortKey(column);
+      setStoreSortDir("asc");
+    }
+  }
+
   function toggleRuleDay(day: OrderDay) {
     setRuleDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day]);
   }
@@ -331,6 +387,26 @@ export default function RouteMasterV2() {
     setSelectedStoreIds((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function updateStoreLeadTime(id: number, leadTime: number) {
+    setStoreLeadTimeOverrides((current) => {
+      const next = { ...current };
+      if (leadTime === defaultLeadTime) delete next[id];
+      else next[id] = leadTime;
+      return next;
+    });
+  }
+
+  function updateStoreSafetyStock(id: number, line: "key" | "core", value: number) {
+    const defaultValue = line === "key" ? defaultKeyLineSafetyStock : defaultCoreLineSafetyStock;
+    const setOverrides = line === "key" ? setStoreKeySafetyStockOverrides : setStoreCoreSafetyStockOverrides;
+    setOverrides((current) => {
+      const next = { ...current };
+      if (value === defaultValue) delete next[id];
+      else next[id] = value;
       return next;
     });
   }
@@ -349,7 +425,7 @@ export default function RouteMasterV2() {
 
   function saveRouteRule() {
     if (!ruleVendor || !ruleArea || !ruleOrderType || !ruleDays.length) {
-      showNotice("Complete vendor, merchandise area, order type, and delivery calendar.");
+      showNotice("Complete vendor, merchandise area, order type, and ordering day.");
       return;
     }
     if (ruleOrderType === "Warehouse BULK" && !ruleWarehouse) {
@@ -380,7 +456,9 @@ export default function RouteMasterV2() {
       city: store.city,
       state: store.state,
       orderDays: [...ruleDays],
-      leadTimeWeeks: defaultLeadTime,
+      leadTimeWeeks: storeLeadTimeOverrides[store.id] ?? defaultLeadTime,
+      keyLineSafetyStock: storeKeySafetyStockOverrides[store.id] ?? defaultKeyLineSafetyStock,
+      coreLineSafetyStock: storeCoreSafetyStockOverrides[store.id] ?? defaultCoreLineSafetyStock,
       transportMode: "Company Fleet",
       tempControlled: "No",
       routeStatus: "Active",
@@ -453,6 +531,11 @@ export default function RouteMasterV2() {
     setRuleFormat("all");
     setStoreStateFilter("all");
     setDefaultLeadTime(2);
+    setDefaultKeyLineSafetyStock(20);
+    setDefaultCoreLineSafetyStock(10);
+    setStoreLeadTimeOverrides({});
+    setStoreKeySafetyStockOverrides({});
+    setStoreCoreSafetyStockOverrides({});
     setStoreSearch("");
     setSelectedStoreIds(new Set());
     setCreatedAssignmentCount(0);
@@ -474,12 +557,24 @@ export default function RouteMasterV2() {
         showNotice("Default lead time must be at least 1 week.");
         return;
       }
+      if (defaultKeyLineSafetyStock < 0 || defaultCoreLineSafetyStock < 0) {
+        showNotice("Safety stock values must be 0 or greater.");
+        return;
+      }
       setCreationStep(2);
       return;
     }
     if (creationStep === 2) {
       if (!selectedStoreIds.size) {
         showNotice("Select at least one store to continue.");
+        return;
+      }
+      if (Array.from(selectedStoreIds).some((id) => (storeLeadTimeOverrides[id] ?? defaultLeadTime) <= 0)) {
+        showNotice("Selected stores must have a lead time of at least 1 week.");
+        return;
+      }
+      if (Array.from(selectedStoreIds).some((id) => (storeKeySafetyStockOverrides[id] ?? defaultKeyLineSafetyStock) < 0 || (storeCoreSafetyStockOverrides[id] ?? defaultCoreLineSafetyStock) < 0)) {
+        showNotice("Selected stores must have safety stock values of 0 or greater.");
         return;
       }
       setCreationStep(3);
@@ -543,26 +638,70 @@ export default function RouteMasterV2() {
               <Button onClick={returnToRouteMaster} className="mt-6 h-9 gap-2 bg-blue-900 text-white hover:bg-blue-950"><ArrowLeft className="h-4 w-4" />Back to Route Master</Button>
             </div> : <>
               {creationStep === 1 && <div className="space-y-5">
-                <DrawerSection label="Define the Rule">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormField label="Vendor *"><Select value={ruleVendor || "unassigned"} onValueChange={(value) => setRuleVendor(value === "unassigned" ? "" : value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select vendor" /></SelectTrigger><SelectContent><SelectItem value="unassigned">Select vendor</SelectItem>{VENDORS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
-                    <FormField label="Merchandise Area *"><Select value={ruleArea || "unassigned"} onValueChange={(value) => setRuleArea(value === "unassigned" ? "" : value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select merchandise area" /></SelectTrigger><SelectContent><SelectItem value="unassigned">Select merchandise area</SelectItem>{MERCH_AREAS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                      <DrawerSection label="Merchandise Assignment">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <FormField label="Vendor *"><Select value={ruleVendor || "unassigned"} onValueChange={(value) => setRuleVendor(value === "unassigned" ? "" : value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select vendor" /></SelectTrigger><SelectContent><SelectItem value="unassigned">Select vendor</SelectItem>{VENDORS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
+                          <FormField label="Merchandise Area *"><Select value={ruleArea || "unassigned"} onValueChange={(value) => setRuleArea(value === "unassigned" ? "" : value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select merchandise area" /></SelectTrigger><SelectContent><SelectItem value="unassigned">Select merchandise area</SelectItem>{MERCH_AREAS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
+                        </div>
+                      </DrawerSection>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                      <DrawerSection label="Order Setup">
+                        <FormField label="Order Type *"><div className="grid grid-cols-2 gap-2">{(["DSD", "Warehouse BULK"] as OrderType[]).map((value) => <button key={value} type="button" onClick={() => { setRuleOrderType(value); if (value === "Warehouse BULK" && !ruleWarehouse) setRuleWarehouse(WAREHOUSES[0]); }} className={cn("h-10 rounded-md border px-3 text-xs font-semibold transition-colors", ruleOrderType === value ? "border-blue-900 bg-blue-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300")}>{value}</button>)}</div></FormField>
+                        {ruleOrderType === "Warehouse BULK" && <FormField label="Warehouse / Plant *"><Select value={ruleWarehouse || "unassigned"} onValueChange={(value) => setRuleWarehouse(value === "unassigned" ? "" : value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select warehouse" /></SelectTrigger><SelectContent><SelectItem value="unassigned">Select warehouse</SelectItem>{WAREHOUSES.map((value) => <SelectItem key={value} value={value}>{WAREHOUSE_META[value].number} – {value.replace("RDC – ", "RDC ")}</SelectItem>)}</SelectContent></Select></FormField>}
+                      </DrawerSection>
+                    </div>
                   </div>
-                  <FormField label="Order Type *"><div className="grid max-w-lg grid-cols-2 gap-2">{(["DSD", "Warehouse BULK"] as OrderType[]).map((value) => <button key={value} type="button" onClick={() => { setRuleOrderType(value); if (value === "Warehouse BULK" && !ruleWarehouse) setRuleWarehouse(WAREHOUSES[0]); }} className={cn("h-10 rounded-md border px-3 text-xs font-semibold transition-colors", ruleOrderType === value ? "border-blue-900 bg-blue-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300")}>{value}</button>)}</div></FormField>
-                  {ruleOrderType === "Warehouse BULK" ? <div className="grid gap-4 md:grid-cols-2">
-                    <FormField label="Warehouse / Plant *"><Select value={ruleWarehouse || "unassigned"} onValueChange={(value) => setRuleWarehouse(value === "unassigned" ? "" : value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select warehouse" /></SelectTrigger><SelectContent><SelectItem value="unassigned">Select warehouse</SelectItem>{WAREHOUSES.map((value) => <SelectItem key={value} value={value}>{WAREHOUSE_META[value].number} – {value.replace("RDC – ", "RDC ")}</SelectItem>)}</SelectContent></Select></FormField>
-                    <FormField label="Default Lead Time (Weeks) *"><Input type="number" min={1} value={defaultLeadTime || ""} onChange={(event) => setDefaultLeadTime(parseInt(event.target.value, 10) || 0)} className="h-9 text-xs tabular-nums" /></FormField>
-                  </div> : <div className="max-w-md"><FormField label="Default Lead Time (Weeks) *"><Input type="number" min={1} value={defaultLeadTime || ""} onChange={(event) => setDefaultLeadTime(parseInt(event.target.value, 10) || 0)} className="h-9 text-xs tabular-nums" /></FormField></div>}
-                </DrawerSection>
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                    <DrawerSection label="Route Defaults">
+                      <FormField label="Default Lead Time (Weeks) *"><Select value={String(defaultLeadTime)} onValueChange={(value) => setDefaultLeadTime(Number(value))}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select lead time" /></SelectTrigger><SelectContent>{Array.from({ length: 12 }, (_, index) => index + 1).map((weeks) => <SelectItem key={weeks} value={String(weeks)}>{weeks} week{weeks === 1 ? "" : "s"}</SelectItem>)}</SelectContent></Select></FormField>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <FormField label="Default / All Safety Stock (Core Line)"><Input type="number" min={0} step={1} value={defaultCoreLineSafetyStock} onChange={(event) => setDefaultCoreLineSafetyStock(parseInt(event.target.value, 10) || 0)} className="h-9 text-xs tabular-nums" /></FormField>
+                        <FormField label="Key Line Safety Stock (Optional)"><Input type="number" min={0} step={1} value={defaultKeyLineSafetyStock} onChange={(event) => setDefaultKeyLineSafetyStock(parseInt(event.target.value, 10) || 0)} className="h-9 text-xs tabular-nums" /></FormField>
+                      </div>
+                      <p className="text-[10px] text-slate-500">Default / All (Core Line) applies across the merchandise area. If this merchandise area has Key Line items, enter or adjust the Key Line value; the default is 20.</p>
+                    </DrawerSection>
+                  </div>
+                </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/40">
-                  <div className="mb-3 flex items-center gap-2"><CalendarDays className="h-4 w-4 text-blue-700" /><span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Delivery Calendar *</span></div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">{ORDER_DAYS.map((day) => <button key={day} type="button" onClick={() => toggleRuleDay(day)} aria-pressed={ruleDays.includes(day)} className={cn("flex h-9 items-center justify-center gap-1 rounded-md border px-2 text-[10px] font-semibold transition-colors", ruleDays.includes(day) ? "border-blue-900 bg-blue-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300")}><span>{day}</span>{ruleDays.includes(day) && <Check className="h-3 w-3" />}</button>)}</div>
-                  <p className="mt-2 text-[10px] text-slate-500">Choose one or more days this vendor and merchandise area can be ordered.</p>
+                  <DrawerSection label="Ordering Days *">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">{ORDER_DAYS.map((day) => <button key={day} type="button" onClick={() => toggleRuleDay(day)} aria-pressed={ruleDays.includes(day)} className={cn("flex h-9 items-center justify-center gap-1 rounded-md border px-2 text-[10px] font-semibold transition-colors", ruleDays.includes(day) ? "border-blue-900 bg-blue-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300")}><span>{day}</span>{ruleDays.includes(day) && <Check className="h-3 w-3" />}</button>)}</div>
+                    <p className="text-[10px] text-slate-500">Choose one or more days this vendor and merchandise area can be ordered.</p>
+                  </DrawerSection>
                 </div>
                 <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2.5 text-[11px] text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-300"><Info className="h-4 w-4 flex-shrink-0" />{ruleOrderType === "DSD" ? "Direct-to-store delivery does not require a warehouse." : "Warehouse BULK assignments will use the selected warehouse."}</div>
               </div>}
 
               {creationStep === 2 && <div className="space-y-4">
+                <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-4 dark:border-blue-900 dark:bg-blue-950/20">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300"><Route className="h-3.5 w-3.5" />Route Rule</div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setCreationStep(1)} className="h-7 gap-1.5 border-blue-200 bg-white px-2.5 text-[10px] text-blue-900"><Pencil className="h-3 w-3" />Edit</Button>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-slate-500">Route / Store Filtering</p>
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
+                        <div><dt className="text-slate-500">Vendor</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{ruleVendor}</dd></div>
+                        <div><dt className="text-slate-500">Merchandise Area</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{ruleArea}</dd></div>
+                        <div><dt className="text-slate-500">Order Type</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{ruleOrderType}</dd></div>
+                        <div><dt className="text-slate-500">Warehouse / Plant</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{routeSummaryWarehouse}</dd></div>
+                      </dl>
+                    </div>
+                    <div className="border-t border-blue-100 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 dark:border-blue-900">
+                      <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-slate-500">Route Defaults</p>
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
+                        <div><dt className="text-slate-500">Default Lead Time</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{defaultLeadTime} week{defaultLeadTime === 1 ? "" : "s"}</dd></div>
+                        <div><dt className="text-slate-500">Ordering Day(s)</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{ruleSummaryDays}</dd></div>
+                        <div><dt className="text-slate-500">Default / All Safety Stock (Core Line)</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{defaultCoreLineSafetyStock}</dd></div>
+                        <div><dt className="text-slate-500">Key Line Safety Stock</dt><dd className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{defaultKeyLineSafetyStock}</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Choose the stores for this rule</h2><p className="mt-1 text-[11px] text-slate-500">Filter by store attributes, then select one or more locations. {selectedCount} selected.</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={selectAllVisible} className="h-8 text-[10px]">Select visible ({visibleApplicableRows.length})</Button><Button variant="outline" size="sm" onClick={clearAllVisible} className="h-8 text-[10px]">Clear visible</Button></div></div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <FormField label="Property"><Select value={ruleProperty} onValueChange={setRuleProperty}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Properties</SelectItem>{PROPERTIES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
@@ -571,15 +710,39 @@ export default function RouteMasterV2() {
                   <FormField label="Search Stores"><div className="relative"><Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Input value={storeSearch} onChange={(event) => setStoreSearch(event.target.value)} placeholder="Store number or name" className="h-9 pl-8 text-xs" /></div></FormField>
                 </div>
                 <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-                  <div className="grid grid-cols-[32px_1fr_1fr_100px_75px] gap-3 border-b bg-slate-50 px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-900/60"><span></span><span>Store</span><span>Property</span><span>Format</span><span>State</span></div>
-                  <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
-                    {visibleApplicableRows.length === 0 ? <div className="px-4 py-10 text-center text-xs text-slate-400">No stores match these filters.</div> : visibleApplicableRows.map((row) => <label key={row.id} className="grid cursor-pointer grid-cols-[32px_1fr_1fr_100px_75px] items-center gap-3 px-3 py-2.5 text-[11px] transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20">
-                      <input type="checkbox" aria-label={`Select ${row.storeNumber} ${row.storeName}`} checked={selectedStoreIds.has(row.id)} onChange={() => toggleStore(row.id)} className="h-4 w-4 accent-blue-900" />
-                      <span className="min-w-0"><span className="font-mono font-semibold text-blue-900 dark:text-blue-300">{row.storeNumber}</span><span className="ml-2 truncate font-medium text-slate-800 dark:text-slate-200">{row.storeName}</span></span>
-                      <span className="truncate text-slate-600 dark:text-slate-400">{row.property}</span><span className="text-slate-600 dark:text-slate-400">{row.format}</span><span className="text-slate-600 dark:text-slate-400">{row.state}</span>
-                    </label>)}
-                  </div>
-                  <div className="border-t bg-slate-50/50 px-3 py-2 text-[10px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/40">{selectedCount} selected · {visibleApplicableRows.length} stores match the current filters</div>
+                  <div className="max-h-[360px] overflow-y-auto"><ScrollArea className="w-full"><div className="min-w-[1760px]">
+                    <table className="w-full border-collapse text-[11px]">
+                      <thead><tr className="bg-slate-50 text-left text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-900/60">
+                        <th className="px-3 py-2 text-center">Selection</th><StoreSortHeader label="Store" column="store" active={storeSortKey === "store"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="Current Lead Time" column="currentLeadTime" active={storeSortKey === "currentLeadTime"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="Updated Lead Time" column="updatedLeadTime" active={storeSortKey === "updatedLeadTime"} direction={storeSortDir} onClick={handleStoreSort} />
+                        <StoreSortHeader label="Current Key SS" column="currentKeySafetyStock" active={storeSortKey === "currentKeySafetyStock"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="Updated Key SS" column="updatedKeySafetyStock" active={storeSortKey === "updatedKeySafetyStock"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="Current Default / All SS" column="currentCoreSafetyStock" active={storeSortKey === "currentCoreSafetyStock"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="Updated Default / All SS" column="updatedCoreSafetyStock" active={storeSortKey === "updatedCoreSafetyStock"} direction={storeSortDir} onClick={handleStoreSort} />
+                        <StoreSortHeader label="Ordering Day(s)" column="orderingDays" active={storeSortKey === "orderingDays"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="Property" column="property" active={storeSortKey === "property"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="Format" column="format" active={storeSortKey === "format"} direction={storeSortDir} onClick={handleStoreSort} /><StoreSortHeader label="State" column="state" active={storeSortKey === "state"} direction={storeSortDir} onClick={handleStoreSort} />
+                      </tr></thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {visibleApplicableRows.length === 0 ? <tr><td colSpan={12} className="px-4 py-10 text-center text-xs text-slate-400">No stores match these filters.</td></tr> : visibleApplicableRows.map((row) => {
+                          const isSelected = selectedStoreIds.has(row.id);
+                          const hasOverride = storeLeadTimeOverrides[row.id] !== undefined;
+                          const updatedLeadTime = storeLeadTimeOverrides[row.id] ?? defaultLeadTime;
+                          const hasKeyOverride = storeKeySafetyStockOverrides[row.id] !== undefined;
+                          const updatedKeySafetyStock = storeKeySafetyStockOverrides[row.id] ?? defaultKeyLineSafetyStock;
+                          const hasCoreOverride = storeCoreSafetyStockOverrides[row.id] !== undefined;
+                          const updatedCoreSafetyStock = storeCoreSafetyStockOverrides[row.id] ?? defaultCoreLineSafetyStock;
+                          return <tr key={row.id} className={cn("transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20", isSelected && "bg-blue-50/30 dark:bg-blue-950/10")}>
+                            <td className="px-3 py-2.5 text-center"><input type="checkbox" aria-label={`Select ${row.storeNumber} ${row.storeName}`} checked={isSelected} onChange={() => toggleStore(row.id)} className="h-4 w-4 accent-blue-900" /></td>
+                            <td className="whitespace-nowrap px-3 py-2.5"><span className="font-mono font-semibold text-blue-900 dark:text-blue-300">{row.storeNumber}</span><span className="ml-2 font-medium text-slate-800 dark:text-slate-200">{row.storeName}</span></td>
+                            <td className="whitespace-nowrap px-3 py-2.5 font-medium tabular-nums text-slate-600 dark:text-slate-400">{row.leadTimeWeeks > 0 ? `${row.leadTimeWeeks} week${row.leadTimeWeeks === 1 ? "" : "s"}` : "—"}</td>
+                            <td className="px-3 py-2"><div className="flex items-center gap-2"><Input type="number" min={1} step={1} aria-label={`${row.storeName} updated lead time in weeks`} value={updatedLeadTime || ""} onChange={(event) => updateStoreLeadTime(row.id, parseInt(event.target.value, 10) || 0)} className="h-8 w-20 text-xs tabular-nums" /><span className="text-[10px] text-slate-500">weeks</span><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px]", hasOverride ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-500")}>{hasOverride ? "Override" : "Default"}</Badge></div></td>
+                            <td className="px-3 py-2.5 text-center font-medium tabular-nums text-slate-600 dark:text-slate-400">{row.keyLineSafetyStock}</td>
+                            <td className="px-3 py-2"><div className="flex items-center gap-2"><Input type="number" min={0} step={1} aria-label={`${row.storeName} updated key line safety stock`} value={updatedKeySafetyStock} onChange={(event) => updateStoreSafetyStock(row.id, "key", parseInt(event.target.value, 10) || 0)} className="h-8 w-16 text-xs tabular-nums" /><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px]", hasKeyOverride ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-500")}>{hasKeyOverride ? "Override" : "Default"}</Badge></div></td>
+                            <td className="px-3 py-2.5 text-center font-medium tabular-nums text-slate-600 dark:text-slate-400">{row.coreLineSafetyStock}</td>
+                            <td className="px-3 py-2"><div className="flex items-center gap-2"><Input type="number" min={0} step={1} aria-label={`${row.storeName} updated default/all safety stock`} value={updatedCoreSafetyStock} onChange={(event) => updateStoreSafetyStock(row.id, "core", parseInt(event.target.value, 10) || 0)} className="h-8 w-16 text-xs tabular-nums" /><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px]", hasCoreOverride ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-500")}>{hasCoreOverride ? "Override" : "Default"}</Badge></div></td>
+                            <td className="whitespace-nowrap px-3 py-2.5 text-slate-600 dark:text-slate-400">{ruleSummaryDays}</td>
+                            <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{row.property}</td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{row.format}</td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{row.state}</td>
+                          </tr>;
+                        })}
+                      </tbody>
+                    </table>
+                  </div><ScrollBar orientation="horizontal" /></ScrollArea></div>
+                  <div className="border-t bg-slate-50/50 px-3 py-2 text-[10px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/40">{selectedCount} selected · {visibleApplicableRows.length} stores match the current filters · Updated lead time and safety stock default to the route rule and can be overridden per store</div>
                 </div>
               </div>}
 
@@ -591,15 +754,21 @@ export default function RouteMasterV2() {
                     <dl className="space-y-3 text-xs">
                       <div><dt className="text-[10px] text-slate-500">Vendor</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{ruleVendor}</dd></div>
                       <div><dt className="text-[10px] text-slate-500">Merchandise Area</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{ruleArea}</dd></div>
-                      <div><dt className="text-[10px] text-slate-500">Order Type</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{ruleOrderType}{ruleOrderType === "Warehouse BULK" ? ` · ${routeSummaryWarehouse}` : ""}</dd></div>
-                      <div><dt className="text-[10px] text-slate-500">Delivery Days</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{ruleSummaryDays}</dd></div>
+                      <div><dt className="text-[10px] text-slate-500">Order Type</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{ruleOrderType}</dd></div>
+                      <div><dt className="text-[10px] text-slate-500">Ordering Day(s)</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{ruleSummaryDays}</dd></div>
+                      <div><dt className="text-[10px] text-slate-500">Warehouse / Plant</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{routeSummaryWarehouse}</dd></div>
                       <div><dt className="text-[10px] text-slate-500">Default Lead Time</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{defaultLeadTime} week{defaultLeadTime === 1 ? "" : "s"}</dd></div>
+                      <div><dt className="text-[10px] text-slate-500">Default / All Safety Stock (Core Line)</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{defaultCoreLineSafetyStock}</dd></div>
+                      <div><dt className="text-[10px] text-slate-500">Key Line Safety Stock (if applicable)</dt><dd className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{defaultKeyLineSafetyStock}</dd></div>
                     </dl>
                   </div>
                   <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/50"><div className="flex items-center gap-2"><Store className="h-4 w-4 text-blue-700" /><span className="text-xs font-bold text-slate-800 dark:text-slate-200">Selected Stores</span></div><Badge className="border-blue-200 bg-white text-blue-900">{selectedStores.length}</Badge></div>
                     <div className="max-h-[300px] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
-                      {selectedStores.map((store) => <div key={store.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[11px]"><div className="min-w-0"><span className="font-mono font-semibold text-blue-900 dark:text-blue-300">{store.storeNumber}</span><span className="ml-2 font-medium text-slate-800 dark:text-slate-200">{store.storeName}</span></div><span className="shrink-0 text-slate-500">{store.property} · {store.format}</span></div>)}
+                      {selectedStores.map((store) => {
+                        const hasStoreOverride = storeLeadTimeOverrides[store.id] !== undefined || storeKeySafetyStockOverrides[store.id] !== undefined || storeCoreSafetyStockOverrides[store.id] !== undefined;
+                        return <div key={store.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[11px]"><div className="min-w-0"><span className="font-mono font-semibold text-blue-900 dark:text-blue-300">{store.storeNumber}</span><span className="ml-2 font-medium text-slate-800 dark:text-slate-200">{store.storeName}</span><span className="ml-2 text-slate-500">{store.property} · {store.format}</span></div><div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-slate-600 dark:text-slate-400"><span>{storeLeadTimeOverrides[store.id] ?? defaultLeadTime} wk</span><span>Key {storeKeySafetyStockOverrides[store.id] ?? defaultKeyLineSafetyStock}</span><span>Default / All {storeCoreSafetyStockOverrides[store.id] ?? defaultCoreLineSafetyStock}</span>{hasStoreOverride && <Badge variant="outline" className="border-amber-300 bg-amber-50 px-1.5 py-0 text-[9px] text-amber-800">Override</Badge>}</div></div>;
+                      })}
                     </div>
                   </div>
                 </div>
@@ -681,7 +850,7 @@ export default function RouteMasterV2() {
 
         {activeScreen === "overview" && <Card className="glass-card min-w-0 overflow-hidden rounded-xl border shadow-lg">
           <CardHeader className="border-b border-slate-200 bg-slate-50/50 px-5 py-3 dark:border-slate-800 dark:bg-slate-900/50"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-900/10 text-blue-900"><Route className="h-4 w-4" /></div><div><CardTitle className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">Existing Route Overview</CardTitle><p className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">{filteredRoutes.length} of {routes.length} assignments · secondary detail view</p></div></div>{(search || filterVendor !== "all" || filterArea !== "all" || filterStore !== "all" || filterOrderType !== "all" || filterWarehouse !== "all" || filterOrderDay !== "all" || filterStatus !== "all" || filterCategory !== "all" || validationFilter) && <button onClick={resetFilters} className="text-[10px] font-medium text-blue-900 hover:underline">Clear filters</button>}</div></CardHeader>
-          <CardContent className="p-0"><ScrollArea className="w-full"><div className="min-w-[1640px]"><table className="w-full border-collapse text-[11px]"><thead><tr><SortHeader label="Vendor" column="vendor" active={sortKey === "vendor"} direction={sortDir} onClick={handleSort} className="w-[155px]" /><SortHeader label="Merchandise Area" column="merchArea" active={sortKey === "merchArea"} direction={sortDir} onClick={handleSort} className="w-[155px]" /><th className="w-[90px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Category</th><SortHeader label="Store No." column="storeNumber" active={sortKey === "storeNumber"} direction={sortDir} onClick={handleSort} className="w-[82px]" /><SortHeader label="Store Name" column="storeName" active={sortKey === "storeName"} direction={sortDir} onClick={handleSort} className="w-[155px]" /><th className="w-[135px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Property</th><th className="w-[72px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Format</th><SortHeader label="Order Type" column="orderType" active={sortKey === "orderType"} direction={sortDir} onClick={handleSort} className="w-[115px]" /><th className="w-[165px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Warehouse</th><SortHeader label="Order Day" column="orderDays" active={sortKey === "orderDays"} direction={sortDir} onClick={handleSort} className="w-[105px]" /><SortHeader label="LT (Wks)" column="leadTimeWeeks" active={sortKey === "leadTimeWeeks"} direction={sortDir} onClick={handleSort} className="w-[82px]" /><th className="w-[105px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Transport</th><th className="w-[78px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Temp Ctrl</th><th className="w-[86px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Status</th><th className="w-[58px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Action</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{filteredRoutes.length === 0 ? <tr><td colSpan={15} className="h-32 text-center text-sm text-slate-400">No route assignments match the current filters.</td></tr> : filteredRoutes.map((row) => <tr key={row.id} className={cn("h-11 transition-colors hover:bg-blue-50/30 dark:hover:bg-blue-900/10", row.routeStatus === "Inactive" && "opacity-65")}><td className="border-r border-slate-100 px-3 py-1.5 font-semibold text-slate-800 dark:border-slate-800 dark:text-slate-200">{row.vendor || <span className="text-rose-500">Missing</span>}</td><td className="border-r border-slate-100 px-3 py-1.5 font-medium text-blue-900 dark:border-slate-800 dark:text-blue-300">{row.merchArea || <span className="text-rose-500">Missing</span>}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{row.category}</td><td className="border-r border-slate-100 px-3 py-1.5 font-mono font-medium text-blue-900 dark:border-slate-800">{row.storeNumber}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-700 dark:border-slate-800 dark:text-slate-300">{row.storeName}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{row.property}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{row.format}</td><td className="border-r border-slate-100 px-3 py-1.5 dark:border-slate-800"><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px] font-bold", row.orderType === "DSD" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-blue-300 bg-blue-100 text-blue-900")}>{row.orderType}</Badge></td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{warehouseLabel(row)}</td><td className="border-r border-slate-100 px-3 py-1.5 dark:border-slate-800"><div className="flex flex-wrap gap-1">{row.orderDays.length ? row.orderDays.map((day) => <Badge key={day} variant="outline" className="border-slate-200 bg-slate-50 px-1.5 py-0 text-[9px] text-slate-600">{DAY_SHORT[day]}</Badge>) : <span className="text-rose-500">Missing</span>}</div></td><td className="border-r border-slate-100 px-3 py-1.5 text-center font-semibold tabular-nums text-slate-700 dark:border-slate-800">{row.leadTimeWeeks > 0 ? `${row.leadTimeWeeks} wk${row.leadTimeWeeks === 1 ? "" : "s"}` : <span className="text-rose-500">Missing</span>}</td><td className="border-r border-slate-100 px-3 py-1.5 whitespace-nowrap text-slate-600 dark:border-slate-800"><div className="flex items-center gap-1"><Truck className="h-3 w-3 text-slate-400" />{row.transportMode}</div></td><td className="border-r border-slate-100 px-3 py-1.5 text-center dark:border-slate-800"><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px]", row.tempControlled === "Yes" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500")}><Thermometer className="mr-1 inline h-3 w-3" />{row.tempControlled}</Badge></td><td className="border-r border-slate-100 px-3 py-1.5 text-center dark:border-slate-800"><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px] font-bold", row.routeStatus === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-500")}>{row.routeStatus}</Badge></td><td className="px-2 py-1.5 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4 text-slate-400" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-36"><DropdownMenuItem onClick={() => openEdit(row)}><Pencil className="mr-2 h-3.5 w-3.5" />View / Edit</DropdownMenuItem><DropdownMenuItem onClick={() => duplicateRoute(row)}><Copy className="mr-2 h-3.5 w-3.5" />Duplicate</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => deactivateRoute(row)} disabled={row.routeStatus === "Inactive"} className="text-amber-600 focus:text-amber-600"><PowerOff className="mr-2 h-3.5 w-3.5" />Deactivate</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td></tr>)}</tbody></table></div><ScrollBar orientation="horizontal" /></ScrollArea><div className="flex items-center justify-between border-t bg-slate-50/30 px-4 py-2.5 dark:bg-slate-900/20"><p className="text-[11px] text-slate-500">{filteredRoutes.length === 0 ? "No results" : `Showing 1–${filteredRoutes.length} of ${filteredRoutes.length}`}</p><p className="text-[10px] text-slate-400">Existing route overview · frontend mock data</p></div></CardContent>
+          <CardContent className="p-0"><ScrollArea className="w-full"><div className="min-w-[1760px]"><table className="w-full border-collapse text-[11px]"><thead><tr><SortHeader label="Vendor" column="vendor" active={sortKey === "vendor"} direction={sortDir} onClick={handleSort} className="w-[155px]" /><SortHeader label="Merchandise Area" column="merchArea" active={sortKey === "merchArea"} direction={sortDir} onClick={handleSort} className="w-[155px]" /><th className="w-[90px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Category</th><SortHeader label="Store No." column="storeNumber" active={sortKey === "storeNumber"} direction={sortDir} onClick={handleSort} className="w-[82px]" /><SortHeader label="Store Name" column="storeName" active={sortKey === "storeName"} direction={sortDir} onClick={handleSort} className="w-[155px]" /><th className="w-[135px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Property</th><th className="w-[72px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Format</th><SortHeader label="Order Type" column="orderType" active={sortKey === "orderType"} direction={sortDir} onClick={handleSort} className="w-[115px]" /><th className="w-[165px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Warehouse</th><SortHeader label="Order Day" column="orderDays" active={sortKey === "orderDays"} direction={sortDir} onClick={handleSort} className="w-[105px]" /><SortHeader label="LT (Wks)" column="leadTimeWeeks" active={sortKey === "leadTimeWeeks"} direction={sortDir} onClick={handleSort} className="w-[82px]" /><th className="w-[128px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Safety Stock</th><th className="w-[105px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Transport</th><th className="w-[78px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Temp Ctrl</th><th className="w-[86px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Status</th><th className="w-[58px] border border-slate-200 bg-slate-50/80 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">Action</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{filteredRoutes.length === 0 ? <tr><td colSpan={16} className="h-32 text-center text-sm text-slate-400">No route assignments match the current filters.</td></tr> : filteredRoutes.map((row) => <tr key={row.id} className={cn("h-11 transition-colors hover:bg-blue-50/30 dark:hover:bg-blue-900/10", row.routeStatus === "Inactive" && "opacity-65")}><td className="border-r border-slate-100 px-3 py-1.5 font-semibold text-slate-800 dark:border-slate-800 dark:text-slate-200">{row.vendor || <span className="text-rose-500">Missing</span>}</td><td className="border-r border-slate-100 px-3 py-1.5 font-medium text-blue-900 dark:border-slate-800 dark:text-blue-300">{row.merchArea || <span className="text-rose-500">Missing</span>}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{row.category}</td><td className="border-r border-slate-100 px-3 py-1.5 font-mono font-medium text-blue-900 dark:border-slate-800">{row.storeNumber}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-700 dark:border-slate-800 dark:text-slate-300">{row.storeName}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{row.property}</td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{row.format}</td><td className="border-r border-slate-100 px-3 py-1.5 dark:border-slate-800"><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px] font-bold", row.orderType === "DSD" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-blue-300 bg-blue-100 text-blue-900")}>{row.orderType}</Badge></td><td className="border-r border-slate-100 px-3 py-1.5 text-slate-600 dark:border-slate-800">{warehouseLabel(row)}</td><td className="border-r border-slate-100 px-3 py-1.5 dark:border-slate-800"><div className="flex flex-wrap gap-1">{row.orderDays.length ? row.orderDays.map((day) => <Badge key={day} variant="outline" className="border-slate-200 bg-slate-50 px-1.5 py-0 text-[9px] text-slate-600">{DAY_SHORT[day]}</Badge>) : <span className="text-rose-500">Missing</span>}</div></td><td className="border-r border-slate-100 px-3 py-1.5 text-center font-semibold tabular-nums text-slate-700 dark:border-slate-800">{row.leadTimeWeeks > 0 ? `${row.leadTimeWeeks} wk${row.leadTimeWeeks === 1 ? "" : "s"}` : <span className="text-rose-500">Missing</span>}</td><td className="border-r border-slate-100 px-3 py-1.5 whitespace-nowrap text-[10px] font-medium tabular-nums text-slate-600 dark:border-slate-800">Key: {row.keyLineSafetyStock} <span className="mx-1 text-slate-300">|</span> Default / All: {row.coreLineSafetyStock}</td><td className="border-r border-slate-100 px-3 py-1.5 whitespace-nowrap text-slate-600 dark:border-slate-800"><div className="flex items-center gap-1"><Truck className="h-3 w-3 text-slate-400" />{row.transportMode}</div></td><td className="border-r border-slate-100 px-3 py-1.5 text-center dark:border-slate-800"><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px]", row.tempControlled === "Yes" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500")}><Thermometer className="mr-1 inline h-3 w-3" />{row.tempControlled}</Badge></td><td className="border-r border-slate-100 px-3 py-1.5 text-center dark:border-slate-800"><Badge variant="outline" className={cn("px-1.5 py-0 text-[9px] font-bold", row.routeStatus === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-500")}>{row.routeStatus}</Badge></td><td className="px-2 py-1.5 text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4 text-slate-400" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-36"><DropdownMenuItem onClick={() => openEdit(row)}><Pencil className="mr-2 h-3.5 w-3.5" />View / Edit</DropdownMenuItem><DropdownMenuItem onClick={() => duplicateRoute(row)}><Copy className="mr-2 h-3.5 w-3.5" />Duplicate</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => deactivateRoute(row)} disabled={row.routeStatus === "Inactive"} className="text-amber-600 focus:text-amber-600"><PowerOff className="mr-2 h-3.5 w-3.5" />Deactivate</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td></tr>)}</tbody></table></div><ScrollBar orientation="horizontal" /></ScrollArea><div className="flex items-center justify-between border-t bg-slate-50/30 px-4 py-2.5 dark:bg-slate-900/20"><p className="text-[11px] text-slate-500">{filteredRoutes.length === 0 ? "No results" : `Showing 1–${filteredRoutes.length} of ${filteredRoutes.length}`}</p><p className="text-[10px] text-slate-400">Existing route overview · frontend mock data</p></div></CardContent>
         </Card>}
 
         <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}><SheetContent side="right" className="flex w-full flex-col p-0 sm:w-[470px]"><SheetHeader className="border-b bg-slate-50/50 px-6 py-4 dark:bg-slate-900/50"><SheetTitle className="flex items-center gap-2 text-base"><Route className="h-4 w-4 text-blue-900" />View / Edit Store Assignment</SheetTitle><SheetDescription className="text-xs">Use this detail view for store-level exceptions after configuring the route rule.</SheetDescription></SheetHeader><ScrollArea className="flex-1"><div className="space-y-6 px-6 py-5">
