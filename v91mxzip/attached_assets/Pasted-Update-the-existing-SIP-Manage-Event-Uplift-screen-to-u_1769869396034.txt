@@ -1,0 +1,164 @@
+Update the existing SIP → Manage Event Uplift screen to use an uplift index model.
+Reuse the current layout, components, colors, and patterns exactly as they are.
+This is a UI-only adjustment using static mock data.
+
+1. Conceptual model (important)
+
+This screen now shows uplift as an index, not demand.
+
+Baseline uplift = 1.0
+
+Weekly uplift values vary above or below 1.0
+
+e.g. 0.8, 1.0, 1.2
+
+Values represent multipliers, not units
+
+Do not show absolute demand numbers.
+
+2. Chart behavior (primary visual)
+
+Adjust the main chart as follows:
+
+Axes
+
+X-axis: Weeks (2026 W1 → 2026 W52)
+
+Y-axis: Uplift Index
+
+Centered around 1.0
+
+Show tick marks at:
+
+0.8
+
+1.0
+
+1.2 (or similar)
+
+Lines on the chart
+
+Show three visual layers:
+
+Baseline Line
+
+Flat horizontal line at 1.0
+
+Neutral color
+
+Always visible
+
+System-Generated Uplift
+
+Line varying week to week (e.g. seasonality)
+
+Derived by the system
+
+Displayed as a continuous line
+
+Slightly stronger color than baseline
+
+User Event Adjustments (Overlay)
+
+Additional line or markers
+
+Only visible where events apply
+
+Distinct color per event (simple differentiation)
+
+Baseline must never be hidden or replaced.
+
+3. System-generated uplift behavior
+
+The system automatically provides:
+
+weekly uplift values from W1 → W52
+
+These values are read-only
+
+They represent:
+
+“Expected uplift without planner intervention”
+
+No editing of this line directly.
+
+4. Event rule management (below the chart)
+
+Update the rule definition panel to work on uplift index values.
+
+Each event rule includes:
+
+Event Name
+
+Start Week
+
+End Week
+
+Uplift Adjustment
+
+Absolute index (e.g. set to 1.2)
+
+or relative adjustment (e.g. +0.1)
+
+Notes (optional)
+
+Event rules:
+
+Apply only to selected weeks
+
+Visually modify the uplift curve for those weeks
+
+Do not overwrite the system-generated values
+
+5. Visual interaction behavior
+
+When an event is added or edited:
+
+The uplift curve updates visually
+
+The baseline 1.0 line remains unchanged
+
+The system-generated uplift remains visible underneath
+
+No recalculation logic needed — simple mock overlays are sufficient.
+
+6. What this screen must NOT do
+
+❌ Do not show demand units
+
+❌ Do not calculate forecasts
+
+❌ Do not allocate inventory
+
+❌ Do not hide baseline or system uplift
+
+❌ Do not allow direct weekly editing
+
+This is rule-based demand shaping only.
+
+7. Empty state reminder
+
+Screen remains empty until:
+
+Merchandise Area
+
+Product Category
+
+Store
+are selected
+
+8. Acceptance checklist
+
+This screen is correct if:
+
+Baseline is clearly shown at 1.0
+
+Weekly uplift fluctuates above/below baseline
+
+Events visibly alter only selected weeks
+
+Planner understands this is a multiplier
+
+The screen answers:
+
+“How is demand being scaled week by week?”

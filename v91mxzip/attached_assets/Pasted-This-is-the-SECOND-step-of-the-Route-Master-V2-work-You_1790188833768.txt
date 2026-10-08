@@ -1,0 +1,840 @@
+This is the SECOND step of the Route Master V2 work.
+
+You have already created a duplicate of the existing Route Master called:
+
+Route Master V2
+
+Now modify ONLY Route Master V2.
+
+DO NOT modify the original Route Master.
+
+DO NOT redesign the MerchX application or introduce a new visual design system.
+
+Use the existing Route Master V2 as the visual foundation and evolve it to support the latest client requirements.
+
+This is still a FRONTEND-ONLY prototype using mock data and frontend state.
+
+==================================================
+1. BUSINESS REQUIREMENT
+==================================================
+
+The client has provided two additional Route Master requirements:
+
+1. Allow route assignments by:
+
+Vendor + Merchandise Area → Store
+
+2. Add a Day of the Week assignment for each:
+
+Vendor + Merchandise Area → Store
+
+relationship.
+
+3. The Day of Week assignment must support BOTH:
+
+- DSD ordering
+- Warehouse BULK ordering
+
+The current Route Master is primarily structured around:
+
+Warehouse → Store
+
+Route Master V2 needs to evolve beyond that model.
+
+The new conceptual model is:
+
+Vendor
++
+Merchandise Area
++
+Store
++
+Order Type
++
+Order Day
+
+For Warehouse BULK routes, Warehouse is also part of the relationship:
+
+Vendor
++
+Merchandise Area
++
+Warehouse
++
+Store
++
+Order Type
++
+Order Day
+
+For DSD routes:
+
+Vendor
++
+Merchandise Area
++
+Store
++
+Order Type
++
+Order Day
+
+Warehouse is not applicable.
+
+==================================================
+2. DO NOT MISINTERPRET MERCHANDISE AREA
+==================================================
+
+This is important.
+
+Merchandise Area describes the merchandise being routed.
+
+It does NOT describe the store.
+
+A single store can have multiple Merchandise Areas.
+
+For example:
+
+Store 101 can have:
+
+- Snacks → McLane → Warehouse BULK → Monday
+- Energy Drinks → Red Bull → DSD → Tuesday
+- Beverages → Vendor X → DSD → Thursday
+
+Therefore the UI must allow multiple route/order assignments for the same store.
+
+Do not collapse these into one store-level route.
+
+==================================================
+3. UPDATE THE MAIN TABLE
+==================================================
+
+Modify the existing Route Master V2 table.
+
+Keep the existing table styling, density, sorting, hover behavior, status badges, and overall visual language.
+
+Update the columns so the table communicates the new relationship.
+
+Recommended columns:
+
+1. Vendor
+2. Merchandise Area
+3. Store No.
+4. Store Name
+5. Property
+6. Order Type
+7. Warehouse
+8. Order Day
+9. Lead Time (Weeks)
+10. Transport
+11. Temp Ctrl
+12. Route Status
+13. Actions
+
+You may retain Category if it fits naturally, but do not allow it to overwhelm the table.
+
+IMPORTANT:
+
+Do not remove useful existing route attributes simply because new columns are being added.
+
+If the table becomes too wide, use sensible column sizing and horizontal scrolling rather than making the UI cramped.
+
+Warehouse should display:
+
+For Warehouse BULK:
+"950 – RDC Las Vegas"
+
+For DSD:
+"—"
+
+or
+
+"Not Applicable"
+
+Use the existing table's visual language.
+
+==================================================
+4. ADD VENDOR
+==================================================
+
+Vendor must become a first-class route assignment field.
+
+Add Vendor to:
+
+- Main table
+- Add Route drawer
+- Edit Route drawer
+- Filters
+- Mock data
+- Validation logic
+
+Use realistic mock vendors such as:
+
+- McLane
+- Red Bull Distribution
+- Regional Beverage Distributor
+- National Snacks Vendor
+- Vendor ABC
+
+Do not make Vendor simply another Lead Time hierarchy.
+
+Vendor represents the supply source.
+
+==================================================
+5. ADD ORDER TYPE
+==================================================
+
+Add:
+
+Order Type
+
+with two values:
+
+- DSD
+- Warehouse BULK
+
+This should be a prominent control in the Add/Edit drawer.
+
+Use a segmented control, radio cards, or another compact interaction that fits the existing MerchX design.
+
+Recommended:
+
+[ DSD ] [ Warehouse BULK ]
+
+The selected state should be visually obvious but not overly aggressive.
+
+==================================================
+6. CONDITIONAL WAREHOUSE BEHAVIOR
+==================================================
+
+This is critical.
+
+If:
+
+Order Type = DSD
+
+The relationship is:
+
+Vendor
+↓
+Merchandise Area
+↓
+Store
+
+Warehouse should become:
+
+Not Applicable
+
+Disable or hide the warehouse selection.
+
+If:
+
+Order Type = Warehouse BULK
+
+The relationship is:
+
+Vendor
+↓
+Merchandise Area
+↓
+Warehouse
+↓
+Store
+
+Warehouse becomes required.
+
+Allow selection of:
+
+- Warehouse No.
+- Warehouse Name
+
+Use the existing warehouse mock data.
+
+Do NOT create separate DSD and Warehouse screens.
+
+Both belong in the same Route Master.
+
+==================================================
+7. ADD DAY OF WEEK
+==================================================
+
+Add a required:
+
+Order Day
+
+field.
+
+Values:
+
+Monday
+Tuesday
+Wednesday
+Thursday
+Friday
+Saturday
+Sunday
+
+This field must be available for BOTH:
+
+DSD
+
+AND
+
+Warehouse BULK
+
+Do NOT make this DSD-only.
+
+Example:
+
+DSD:
+
+Red Bull
+→ Energy Drinks
+→ Store 101
+→ Tuesday
+
+Warehouse BULK:
+
+McLane
+→ Snacks
+→ Warehouse 950
+→ Store 101
+→ Monday
+
+==================================================
+8. ADD ORDER DAY TO THE TABLE
+==================================================
+
+Add:
+
+Order Day
+
+as a visible table column.
+
+Examples:
+
+Monday
+Tuesday
+Wednesday
+
+Use compact badges/pills if appropriate.
+
+Do not make the UI overly colorful.
+
+==================================================
+9. UPDATE FILTERS
+==================================================
+
+Keep the existing filter experience.
+
+Add:
+
+Vendor
+Order Type
+Order Day
+
+Continue supporting useful existing filters such as:
+
+Warehouse
+Property
+State
+Store Status
+Route Status
+Category
+Merchandise Area
+Lead Time
+
+The filter bar may wrap or use horizontal scrolling if necessary.
+
+Prioritize these filters:
+
+Vendor
+Merchandise Area
+Store
+Order Type
+Warehouse
+Order Day
+Status
+
+Make all filters functional using frontend mock state.
+
+Include:
+
+Reset Filters
+
+==================================================
+10. UPDATE THE ADD / EDIT DRAWER
+==================================================
+
+Keep the existing drawer pattern.
+
+Do not create a completely new modal design.
+
+Reorganize the existing drawer into logical sections.
+
+---------------------------------
+STORE
+---------------------------------
+
+Store No.
+Store Name
+Property
+State
+City
+
+Use the existing store mock data.
+
+---------------------------------
+MERCHANDISE
+---------------------------------
+
+Category
+Merchandise Area
+
+Make it clear that Merchandise Area represents the merchandise being supplied.
+
+---------------------------------
+SUPPLY RELATIONSHIP
+---------------------------------
+
+Vendor
+
+Order Type
+
+[ DSD ] [ Warehouse BULK ]
+
+---------------------------------
+WAREHOUSE
+---------------------------------
+
+If Warehouse BULK:
+
+Warehouse No.
+Warehouse Name
+
+If DSD:
+
+Show:
+
+Direct to Store
+
+and disable the warehouse selector.
+
+---------------------------------
+ORDERING SCHEDULE
+---------------------------------
+
+Order Day
+
+Monday
+Tuesday
+Wednesday
+Thursday
+Friday
+Saturday
+Sunday
+
+Use a clear label:
+
+Order Day
+
+Add small helper text:
+
+"Day this vendor and merchandise area is scheduled to order for the selected store."
+
+---------------------------------
+ROUTE ATTRIBUTES
+---------------------------------
+
+Lead Time (Weeks)
+Transportation
+Temperature Controlled
+Route Status
+Primary / Secondary
+
+Keep the existing MerchX styling.
+
+==================================================
+11. REMOVE LEAD TIME DAYS
+==================================================
+
+The Route Master V2 should use:
+
+Lead Time (Weeks)
+
+ONLY.
+
+Do NOT show:
+
+Lead Time (Days)
+
+Do NOT create a conversion between Days and Weeks.
+
+The client-facing UI should consistently use weeks.
+
+Also update the KPI:
+
+Current:
+
+Avg Lead Time
+3.3d
+
+Change to something like:
+
+Avg Lead Time
+2.4 wks
+
+Use mock data.
+
+==================================================
+12. ADD RELATIONSHIP PREVIEW
+==================================================
+
+Add a small visual summary inside the Add/Edit drawer.
+
+For Warehouse BULK:
+
+McLane
+↓
+Snacks
+↓
+Warehouse 950
+↓
+Store 101
+
+Then show:
+
+Warehouse BULK · Monday
+
+For DSD:
+
+Red Bull Distribution
+↓
+Energy Drinks
+↓
+Store 101
+
+Then show:
+
+DSD · Tuesday
+
+The preview should update as the user changes:
+
+Vendor
+Merchandise Area
+Order Type
+Warehouse
+Store
+Order Day
+
+Keep this compact and polished.
+
+==================================================
+13. UPDATE MOCK DATA
+==================================================
+
+Create realistic mock data specifically demonstrating the new requirements.
+
+IMPORTANT:
+
+Do not make every route use the same vendor or order type.
+
+Include multiple assignments for the same store.
+
+Example:
+
+----------------------------------
+STORE 101
+----------------------------------
+
+McLane
+Snacks
+Warehouse BULK
+Warehouse 950
+Monday
+2 weeks
+
+Red Bull Distribution
+Energy Drinks
+DSD
+—
+Tuesday
+
+Regional Beverage Distributor
+Beverages
+Warehouse BULK
+Warehouse 950
+Thursday
+2 weeks
+
+
+----------------------------------
+STORE 205
+----------------------------------
+
+McLane
+Snacks
+Warehouse BULK
+Warehouse 960
+Wednesday
+
+Red Bull Distribution
+Energy Drinks
+DSD
+—
+Friday
+
+
+----------------------------------
+STORE 310
+----------------------------------
+
+Red Bull Distribution
+Energy Drinks
+Warehouse BULK
+Warehouse 960
+Thursday
+
+This is important because it demonstrates:
+
+The same store can have multiple merchandise areas.
+
+The same store can have multiple vendors.
+
+The same vendor can use different fulfillment paths.
+
+The same vendor can have different order days for different stores.
+
+==================================================
+14. IMPORTANT RED BULL EXAMPLE
+==================================================
+
+Explicitly include a Red Bull scenario because this represents the client's stated business requirement.
+
+For example:
+
+Store 101:
+
+Red Bull
+Energy Drinks
+DSD
+Tuesday
+
+Store 205:
+
+Red Bull
+Energy Drinks
+Warehouse BULK
+Warehouse 960
+Thursday
+
+This demonstrates that a vendor can serve different stores through different fulfillment methods.
+
+The UI is only representing the relationship.
+
+Do NOT implement actual DSD or replenishment logic.
+
+==================================================
+15. UPDATE VALIDATION
+==================================================
+
+Keep the existing Validation section.
+
+Extend it to support the new fields.
+
+Existing validation concepts can remain:
+
+- Duplicate Routes
+- Missing Lead Times
+- Inactive Routes
+- Recently Modified
+
+Add relevant new validations:
+
+- Missing Vendor
+- Missing Merchandise Area
+- Missing Order Day
+- Missing Warehouse for Warehouse BULK
+- Duplicate Vendor + Merchandise Area + Store + Order Type
+
+For example:
+
+Missing Order Day
+8
+
+Missing Vendor
+3
+
+Missing Warehouse
+2
+
+Duplicate Assignments
+1
+
+These can use mock counts.
+
+==================================================
+16. DUPLICATE ASSIGNMENT LOGIC
+==================================================
+
+For the frontend prototype, consider a route assignment duplicated when the combination of:
+
+Vendor
++
+Merchandise Area
++
+Store
++
+Order Type
+
+is duplicated.
+
+Do not treat two different Order Days as two completely unrelated business relationships.
+
+For example, these should be flagged as a duplicate:
+
+McLane + Snacks + Store 101 + Warehouse BULK
+Monday
+
+McLane + Snacks + Store 101 + Warehouse BULK
+Wednesday
+
+because they represent the same Vendor/Merchandise/Store/Order Type relationship with conflicting schedules.
+
+This is a frontend prototype only, so simply demonstrate the validation visually.
+
+==================================================
+17. KPI CARDS
+==================================================
+
+Keep the existing KPI card design.
+
+Update the KPI content to reflect the new Route Master concept.
+
+Suggested:
+
+Total Route Assignments
+1,248
+
+Active Vendors
+42
+
+Stores Covered
+716
+
+Warehouse BULK Routes
+684
+
+You can use realistic mock values.
+
+Do not overcomplicate the KPI section.
+
+==================================================
+18. PRESERVE THE EXISTING DESIGN
+==================================================
+
+This is extremely important.
+
+Do NOT redesign the page.
+
+Preserve:
+
+- MerchX sidebar
+- Header
+- Breadcrumb
+- Page title treatment
+- Cards
+- Filters
+- Validation bar
+- Table
+- Drawer
+- Buttons
+- Typography
+- Spacing
+- Border treatment
+- Shadows
+- Purple accent
+- Status badges
+- Existing interaction patterns
+
+The goal is:
+
+EXISTING ROUTE MASTER
+        ↓
+ROUTE MASTER V2
+        ↓
+Same visual design
++
+Expanded supply/order relationship model
+
+It should look like a natural evolution of the existing screen.
+
+==================================================
+19. FRONTEND ONLY
+==================================================
+
+Everything should use mock data.
+
+Implement frontend interactions for:
+
+- Search
+- Vendor filter
+- Merchandise Area filter
+- Order Type filter
+- Order Day filter
+- Warehouse filter
+- Existing filters
+- Sorting
+- Add Route
+- Edit Route
+- Save
+- Cancel
+- DSD/BULK switching
+- Conditional Warehouse field
+- Order Day selection
+- Dynamic relationship preview
+- Validation indicators
+
+No backend.
+
+No database.
+
+No API.
+
+No real SIP calculations.
+
+No real replenishment logic.
+
+No real order generation.
+
+==================================================
+20. FINAL USER EXPERIENCE
+==================================================
+
+When a user opens Route Master V2, they should immediately understand:
+
+"This is where I define how a vendor's merchandise gets to a specific store and when that store is ordered."
+
+The fundamental relationship should be visible as:
+
+Vendor
++
+Merchandise Area
++
+Store
++
+Order Type
++
+Order Day
+
+with Warehouse added when:
+
+Order Type = Warehouse BULK
+
+The finished screen should be polished enough to demonstrate directly to the client.
+
+Again:
+
+ONLY MODIFY ROUTE MASTER V2.
+
+DO NOT MODIFY THE ORIGINAL ROUTE MASTER.

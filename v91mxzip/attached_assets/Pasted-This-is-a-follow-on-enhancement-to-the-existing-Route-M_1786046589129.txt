@@ -1,0 +1,269 @@
+This is a follow-on enhancement to the existing Route Master screen.
+
+Do not redesign the screen or change the existing visual style. Build upon the current implementation while keeping the layout, styling, table behaviour and interaction patterns consistent with the rest of MerchX.
+
+This remains a UI-only enhancement using realistic mock data.
+
+Important Architectural Correction
+
+After further review with the client, we need to adjust how the Route Master is represented.
+
+The current implementation unintentionally implies that a Store belongs to a Category or Merchandise Area.
+
+This is not the business model.
+
+A store can carry products from many Categories and many Merchandise Areas.
+
+Instead, Category and Merchandise Area describe the merchandise travelling on the route, not the Store.
+
+The Route Master should therefore be thought of as:
+
+Warehouse + Store + Merchandise Classification → Lead Time
+
+where Merchandise Classification may be maintained at different levels of specificity.
+
+Merchandise Classification
+
+Reorganise the UI so Category and Merchandise Area are visually grouped together as part of a single Merchandise Classification section.
+
+Within the table, keep separate columns but place them next to one another.
+
+Example:
+
+Warehouse	Store	Category	Merchandise Area	Lead Time (Weeks)
+
+This makes it clear these fields describe the merchandise, not the Store.
+
+Introduce Default vs Exception Rules
+
+The client explained that lead times are generally maintained at the Category level.
+
+Only where necessary should a more specific Merchandise Area rule be created.
+
+This means Route Master contains both:
+
+Default rules
+Exception rules
+Example
+
+Default Rule
+
+Warehouse	Store	Category	Merchandise Area	Lead Time
+RDC Vegas	S101	Apparel	All Merchandise Areas	2 Weeks
+
+Exception
+
+Warehouse	Store	Category	Merchandise Area	Lead Time
+RDC Vegas	S101	Apparel	Womens Knitwear	3 Weeks
+
+The second row overrides the default only for Womens Knitwear.
+
+No business logic needs to be implemented.
+
+This is purely represented through mock data.
+
+Rule Type
+
+Add a new column:
+
+Rule Type
+
+Values:
+
+Default
+Exception
+
+Display using small badges.
+
+Examples:
+
+🟢 Default
+
+🟠 Exception
+
+This immediately communicates why multiple rows may exist for the same Warehouse and Store.
+
+Merchandise Area Defaults
+
+Where a rule is a Category default:
+
+Display Merchandise Area as:
+
+All Merchandise Areas
+
+or
+
+rather than leaving it blank.
+
+This helps users understand that the rule applies to the entire Category.
+
+Add/Edit Drawer
+
+Reorganise the drawer into logical sections.
+
+Warehouse
+Warehouse Number
+Warehouse
+Warehouse Address
+Store
+Property
+Store Number
+Store Name
+State
+City
+Merchandise Classification
+Category
+Merchandise Area
+
+Include helper text:
+
+Category defines the default lead time. Merchandise Area can be used to create exceptions where required.
+
+Routing
+Lead Time (Weeks)
+Route Status
+Transportation Mode
+Temperature Controlled
+Delivery Days
+Route Priority
+Information Panel
+
+Within the drawer add a small information card.
+
+Title:
+
+How Route Rules Work
+
+Example text:
+
+Lead times are normally maintained at the Category level.
+
+Where a specific Merchandise Area requires a different lead time, create an Exception rule for that Merchandise Area.
+
+This is informational only.
+
+Mock Data
+
+Update the mock data so users can immediately understand the hierarchy.
+
+Example:
+
+Warehouse
+
+950
+
+Store
+
+S101
+
+Category
+
+Apparel
+
+Merchandise Area
+
+All Merchandise Areas
+
+Rule Type
+
+Default
+
+Lead Time
+
+2 Weeks
+
+Warehouse
+
+950
+
+Store
+
+S101
+
+Category
+
+Apparel
+
+Merchandise Area
+
+Womens Knitwear
+
+Rule Type
+
+Exception
+
+Lead Time
+
+3 Weeks
+
+Warehouse
+
+950
+
+Store
+
+S101
+
+Category
+
+Books
+
+Merchandise Area
+
+All Merchandise Areas
+
+Rule Type
+
+Default
+
+Lead Time
+
+1 Week
+
+Warehouse
+
+950
+
+Store
+
+S101
+
+Category
+
+Books
+
+Merchandise Area
+
+Travel Guides
+
+Rule Type
+
+Exception
+
+Lead Time
+
+2 Weeks
+
+Future Ready
+
+Without implementing any logic, structure the UI so it can naturally support future routing exceptions at additional levels such as:
+
+Vendor
+Style / Material
+
+These do not need to be visible as editable fields yet.
+
+Simply ensure the current design leaves room for this evolution.
+
+Important
+
+Do not implement inheritance logic or override calculations.
+
+The goal is simply to make the Route Master accurately represent the client's business process:
+
+Stores can carry many Categories and Merchandise Areas.
+Category defines the standard routing rule.
+Merchandise Area defines exceptions when required.
+Multiple Route Master rows for the same Warehouse and Store are expected because they represent different merchandise classifications rather than duplicate routes.
+
+Continue using realistic mock data and frontend-only behaviour. The focus is a polished, intuitive UI that accurately reflects the intended business model while remaining fully consistent with the existing MerchX application.

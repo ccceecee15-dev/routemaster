@@ -1,0 +1,312 @@
+This is a follow-on task for the existing MerchX application.
+
+Do not refactor, redesign or modify any existing functionality. Reuse the existing layout, sidebar navigation, theme, typography, colours, spacing, table components, dialogs, filters, search controls and interaction patterns already implemented throughout the application.
+
+This screen is required as a high-fidelity UI prototype only.
+
+The objective is to build a polished, presentation-ready screen that looks completely integrated into MerchX.
+
+Do not spend time implementing backend functionality.
+
+Use mock data throughout.
+
+Do not implement:
+
+Database models
+APIs
+Backend services
+CRUD endpoints
+Authentication
+Complex validation logic
+File upload/import processing
+Export functionality
+Audit persistence
+Permissions
+State management beyond what is needed for the UI
+
+Frontend-only interactions and mock behaviour are sufficient.
+
+Objective
+
+Add a new screen called Route Master under the existing Master Data section.
+
+This screen replaces the Excel spreadsheet currently used by planners to maintain Warehouse-to-Store routing information.
+
+The purpose of this screen is to allow users to view and maintain routing relationships and warehouse lead times that are used throughout Delivery Points, Warehouse Demand calculations and Replenishment planning.
+
+This is Master Data maintenance, not a planning screen.
+
+The UI should feel very familiar to users who currently work in Excel while remaining fully consistent with the existing MerchX application.
+
+Navigation
+
+Under the existing Master Data menu add:
+
+Route Master
+
+Selecting this should open the new Route Master screen while preserving all existing application behaviour.
+
+Overall Screen Layout
+
+Follow the same page structure used throughout MerchX.
+
+The page should contain:
+
+Page Header
+Summary KPI Cards
+Search & Filter Toolbar
+Route Master Data Grid
+Slide-out Edit Drawer (preferred) or existing modal pattern
+Collapsible Validation Summary Panel
+
+Do not introduce a different visual style.
+
+Page Header
+
+Title:
+
+Route Master
+
+Subtitle:
+
+Maintain Warehouse to Store routing and lead times used throughout the MerchX planning engine.
+
+Summary Cards
+
+At the top of the page display four KPI cards.
+
+Use realistic mock data.
+
+Cards:
+
+Total Routes
+Active Warehouses
+Active Stores
+Average Lead Time
+
+These should use the same card style already implemented elsewhere within MerchX.
+
+Search & Filter Toolbar
+
+Reuse existing search and filter controls.
+
+Include:
+
+Global Search
+Warehouse
+State
+Store Status
+Lead Time
+Reset Filters
+
+Global Search should search across:
+
+Warehouse Name
+Warehouse Address
+Store Number
+Store Name
+
+The filters only need frontend mock behaviour.
+
+Primary Route Master Grid
+
+This should be the primary focus of the screen.
+
+Design it as a clean enterprise spreadsheet-style table similar to the Excel Route Master currently used by the planners.
+
+Columns:
+
+Warehouse
+Warehouse Address
+Store Number
+Store Name
+State
+City
+Store Status
+Lead Time (Days)
+Lead Time (Weeks)
+Actions
+
+Populate with realistic mock data.
+
+Example warehouses:
+
+RDC – Las Vegas
+RDC – Orlando
+RDC – Dallas
+RDC – Chicago
+
+Include multiple stores for each warehouse.
+
+Use varying lead times.
+
+Include Open and Closed stores.
+
+Lead Time (Weeks) should automatically calculate from Days within the UI.
+
+Table Behaviour
+
+Reuse existing MerchX table functionality wherever possible.
+
+Include:
+
+Sorting
+Pagination
+Sticky headers
+Search
+Column resizing (if already supported)
+Responsive layout
+
+No backend implementation required.
+
+Row Actions
+
+Each row should contain:
+
+Edit
+Duplicate
+Deactivate
+View History (placeholder)
+
+These only need frontend mock behaviour.
+
+Add / Edit Route
+
+Selecting Add Route or Edit should open the existing MerchX drawer or modal component.
+
+Fields:
+
+Warehouse *
+
+Warehouse Address
+
+Store Number *
+
+Store Name
+
+State
+
+City
+
+Store Status
+
+Lead Time (Days) *
+
+Lead Time (Weeks)
+
+Lead Time (Weeks) should automatically update whenever Days changes.
+
+No backend save is required.
+
+Simply update mock frontend state.
+
+Route Details Panel
+
+Clicking a row should open a read-only details panel.
+
+Display:
+
+Warehouse Information
+Warehouse Name
+Warehouse Address
+Store Information
+Store Number
+Store Name
+State
+City
+Store Status
+Routing
+Lead Time (Days)
+Lead Time (Weeks)
+Audit Information
+
+Use placeholder data.
+
+Display:
+
+Created By
+Created Date
+Last Modified By
+Last Modified Date
+Validation Summary Panel
+
+Add a collapsible panel similar to other informational side panels already used within MerchX.
+
+Display mock information such as:
+
+⚠ Duplicate Routes
+
+⚠ Missing Lead Times
+
+⚠ Inactive Stores
+
+⚠ Recently Modified Routes
+
+Selecting an item should simply filter or highlight the mock data in the table.
+
+No actual validation engine is required.
+
+User Experience
+
+The existing business process is maintained in Excel.
+
+The UI should therefore prioritise efficiency over visual flair.
+
+Design goals:
+
+Spreadsheet-like experience
+Dense but readable tables
+Fast filtering
+Minimal clicks
+Enterprise software feel
+Consistent with every other MerchX screen
+Easy for supply chain users to scan large datasets
+
+Avoid excessive whitespace or oversized cards.
+
+The table should be the hero of the page.
+
+Mock Data
+
+Populate the screen with realistic Warehouse-to-Store routing data.
+
+Include:
+
+Multiple warehouses
+Multiple states
+Multiple cities
+Varying lead times
+Open and Closed stores
+Realistic warehouse addresses
+
+Use enough data so the screen feels like it is supporting a real production environment.
+
+Visual Quality
+
+This screen will be demonstrated alongside the existing MerchX application.
+
+Prioritise:
+
+Pixel-perfect alignment
+Consistent spacing
+Professional enterprise styling
+Smooth interactions
+High-quality typography
+Excellent table readability
+Consistency with existing MerchX patterns
+
+The screen should feel like it has always existed within the application.
+
+Important
+
+This is not a backend feature.
+
+Do not spend time building services or business logic.
+
+Where interactions are required:
+
+Use mock data.
+Simulate behaviour in the frontend.
+Show placeholder success/error messages where appropriate.
+
+The priority is to create a presentation-ready Route Master screen that is visually complete, highly polished and seamlessly integrated into the existing MerchX application while keeping the implementation lightweight and frontend-focused.

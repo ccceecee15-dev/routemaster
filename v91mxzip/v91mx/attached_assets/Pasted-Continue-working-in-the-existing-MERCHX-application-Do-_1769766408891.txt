@@ -1,0 +1,179 @@
+Continue working in the existing MERCHX application.
+
+Do not change global styling, fonts, colours, spacing, sidebar layout, or base components.
+The current design system is correct.
+
+This task refines the RAP → Determine Facings & Presentation screen to align more closely with the Excel reference (Presentation and shelfPlanning sheets).
+
+Scope
+
+Only update:
+
+RAP → Determine Facings & Presentation
+
+Do not modify:
+
+Other RAP screens
+
+SIP screens
+
+Sidebar structure
+
+Backend logic or calculations
+
+This is UI + interaction refinement only.
+
+Purpose of the Screen
+
+This screen defines physical on-shelf rules for SKUs:
+
+How many facings a SKU gets
+
+What minimum presentation quantity is required
+
+These rules constrain SIP later but are not inventory planning.
+
+Screen Structure (keep existing layout)
+1. Page Header
+
+Title:
+
+Determine Facings & Presentation
+
+Optional subtitle (muted):
+
+“Define on-shelf presence rules by SKU”
+
+2. Context Filters (Top)
+
+Filters should mirror Excel scoping:
+
+Merchandise Area
+
+Product Group (PG)
+
+Store Grade
+
+Channel / Format (if already available)
+
+Apply button remains consistent.
+
+3. Main Table (Excel-style, SKU-centric)
+
+Each row = one SKU
+
+The table should feel dense, scan-friendly, and spreadsheet-like.
+
+Required Columns (Excel-aligned)
+
+SKU Context
+
+SKU ID
+
+SKU Description
+
+Product Group (PG)
+
+Eligibility / Scope (read-only)
+
+Channel
+
+Region / Format (if present)
+
+Facings (editable)
+
+Facings
+
+Inline editable (numeric input or stepper)
+
+Primary decision field
+
+Presentation (editable)
+
+Presentation (min units)
+
+Inline editable
+
+Clearly labelled as “Min Units”
+
+Derived / Validation (read-only)
+
+Shelf Usage (derived from facings)
+
+Status / Warning
+
+OK / Over Capacity / Below Minimum (visual only)
+
+Behaviour Rules (important)
+
+Facings and Presentation are the only editable fields
+
+All other fields are read-only
+
+Changing facings or presentation should:
+
+Visually update shelf usage
+
+Update status indicators immediately
+
+No real math is required, but:
+
+Relationships must look correct
+
+Cause → effect must be obvious
+
+Visual Hierarchy (very important)
+
+To match Excel intent but improve clarity:
+
+Facings and Presentation should be visually emphasized
+
+Derived fields slightly muted
+
+Warnings clearly visible but not loud
+
+No charts or cards — table-first experience
+
+This should feel like:
+
+“Excel logic, modern UI”
+
+What NOT to Add
+
+Do not add:
+
+Inventory quantities
+
+Allocation fields
+
+Weekly views
+
+Store-level expansion
+
+SIP concepts
+
+This screen is purely structural / physical rules.
+
+Success Criteria
+
+This screen is correct if:
+
+A planner can quickly scan facings and presentation by SKU
+
+It’s obvious which SKUs are over/under shelf constraints
+
+It clearly feeds SIP without duplicating SIP logic
+
+The Excel Presentation sheet could be removed without losing intent
+
+Sanity Check
+
+If a user asks:
+
+“Is this how much we’ll stock?”
+
+The correct answer should be:
+
+“No — this defines how the product must appear on shelf.”
+
+If that answer holds, the screen is correct.

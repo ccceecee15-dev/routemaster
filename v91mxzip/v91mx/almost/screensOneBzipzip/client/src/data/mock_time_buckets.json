@@ -1,0 +1,14 @@
+[
+  { "id": "2025-01", "label": "Jan 2025", "type": "month" },
+  { "id": "2025-02", "label": "Feb 2025", "type": "month" },
+  { "id": "2025-03", "label": "Mar 2025", "type": "month" },
+  { "id": "2025-04", "label": "Apr 2025", "type": "month" },
+  { "id": "2025-05", "label": "May 2025", "type": "month" },
+  { "id": "2025-06", "label": "Jun 2025", "type": "month" },
+  { "id": "2025-07", "label": "Jul 2025", "type": "month" },
+  { "id": "2025-08", "label": "Aug 2025", "type": "month" },
+  { "id": "2025-09", "label": "Sep 2025", "type": "month" },
+  { "id": "2025-10", "label": "Oct 2025", "type": "month" },
+  { "id": "2025-11", "label": "Nov 2025", "type": "month" },
+  { "id": "2025-12", "label": "Dec 2025", "type": "month" }
+]

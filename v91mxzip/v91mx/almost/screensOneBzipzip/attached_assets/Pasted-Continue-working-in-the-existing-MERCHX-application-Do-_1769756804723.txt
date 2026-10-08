@@ -1,0 +1,142 @@
+Continue working in the existing MERCHX application.
+
+Do not change any global styling, layout, fonts, colours, spacing, or base components.
+The design system is already correct.
+
+This task adds the RAP → Range Style screen using existing UI patterns only.
+
+Scope
+
+Only implement:
+
+RAP → Range Style
+
+Do not modify:
+
+Determine Grading Size
+
+Grade Store
+
+SIP screens
+
+Sidebar styling
+
+Backend logic or calculations
+
+Other RAP tabs can remain placeholders.
+
+Purpose
+
+This screen determines which styles are included in the range, based on previously defined grading size and store grades.
+
+It does not plan quantities, facings, or allocation.
+
+Screen Layout
+
+Use the existing MERCHX pattern:
+
+Page header
+
+Filter bar
+
+Read-only context
+
+Main table inside a card
+
+No new layout patterns.
+
+1. Page Header
+
+Title:
+
+Range Style
+
+Optional subtitle (muted):
+
+“Select styles to include in the range”
+
+2. Context Filters
+
+Reuse existing filter components.
+
+Filters:
+
+Merchandise Area
+
+Category / Sub-Category
+
+Season
+
+Brand (if available)
+
+Include Apply button.
+
+3. Read-Only Context (Rules)
+
+Show a small non-editable section stating:
+
+Grading size and store grades are already defined
+
+Style selection determines eligibility only
+
+Facings and presentation are set in the next step
+
+This is informational only.
+
+4. Style Selection Table
+
+Use an existing table component.
+
+Each row represents one style (or SKU group).
+
+Columns
+
+Context (read-only)
+
+Style ID
+
+Style Description
+
+Category
+
+Season
+
+Reference (read-only, if available)
+
+Historical Sales
+
+Store Coverage
+
+Decision (editable)
+
+In Range (Yes / No toggle)
+
+Style Grade / Priority (dropdown)
+
+Style Grade should only be editable when In Range = Yes.
+
+5. Interaction Rules
+
+User can freely toggle styles In / Out
+
+No validation or warnings required
+
+No capacity enforcement on this screen
+
+Data can be mocked but should look realistic
+
+6. What NOT to Show
+
+Do not show:
+
+Stores
+
+Facings
+
+Presentation
+
+Quantities
+
+Weekly or daily data
+
+Allocation concepts

@@ -1,0 +1,163 @@
+Update the existing RAP → Grade Store screen to support assigning Store Grades by Merchandise Area.
+Do not redesign global UI, fonts, colors, spacing, or navigation.
+Focus only on screen behavior, data structure, and editability.
+
+1. Screen intent (anchor this clearly)
+
+This screen allows a planner to:
+
+Assign a Store Grade to each store
+
+Per Merchandise Area
+
+Using store performance metrics for context
+
+From the grade set defined in Determine Grading Size
+
+This is a classification screen, not a calculation screen.
+
+2. Mandatory entry condition (empty state)
+
+The screen must load in an empty state by default.
+
+Display a placeholder message:
+
+“Select a Merchandise Area to begin store grading”
+
+No store data, tables, or metrics appear until:
+
+a Merchandise Area is selected
+
+3. Context & filter controls (top of screen)
+
+Once a Merchandise Area is selected, enable store filters:
+
+Format
+
+Channel
+
+Region
+
+Property
+
+Terminal
+
+Filters are:
+
+multi-select
+
+optional
+
+used to narrow the store list
+
+4. Store grading table (main interaction surface)
+
+Each row represents one store for the selected Merchandise Area.
+
+Required columns (left → right)
+
+Store ID (read-only)
+
+Store Name (read-only)
+
+Format (read-only)
+
+Channel (read-only)
+
+Region / Property / Terminal (read-only, compact)
+
+Performance Metrics (read-only)
+
+Annual Sales
+
+Units Sold
+
+Sales Density or equivalent
+
+Any other metrics already present in Excel
+
+Assigned Store Grade ✅ editable
+
+Dropdown
+
+Values limited to:
+
+only the grades enabled for this Merchandise Area
+
+sourced from Determine Grading Size
+
+Status / Validation (read-only)
+
+Optional indicator (e.g. “Ungraded”, “Assigned”)
+
+5. Grade assignment rules (important)
+
+Store Grade is:
+
+assigned per store
+
+scoped per Merchandise Area
+
+The dropdown must:
+
+exclude grades hidden for that Merchandise Area
+
+prevent invalid selections
+
+Changing a grade:
+
+updates only that store row
+
+does not auto-adjust other stores
+
+No bulk auto-grading logic is required here.
+
+6. Performance metrics (context only)
+
+Performance columns are read-only
+
+Used to help planners make grading decisions
+
+No calculations or rankings needed
+
+Values can be mocked but should look realistic
+
+This screen does not decide how grades are derived — it only records the planner’s choice.
+
+7. What this screen must NOT do
+
+❌ Do not auto-calculate grades
+
+❌ Do not show SKU-level data
+
+❌ Do not enforce capacity rules
+
+❌ Do not suggest grade changes
+
+❌ Do not include facings or presentation logic
+
+Those belong to later RAP steps.
+
+8. Data assumptions (safe for mock)
+
+Store list can be static
+
+Performance metrics can be mock values
+
+Grade options come from the active grades for the selected Merchandise Area
+
+No backend wiring required
+
+9. Acceptance checklist
+
+Screen is empty until Merchandise Area is selected
+
+Filters refine the store list
+
+Each store can be graded individually
+
+Grade options respect Determine Grading Size
+
+Performance metrics are visible but non-editable
+
+Output feeds Range Style and downstream RAP screens

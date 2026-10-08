@@ -1,0 +1,759 @@
+This is a follow-on change to the existing Route Master V2 screen.
+
+IMPORTANT:
+Only modify Route Master V2.
+Do NOT modify the original Route Master.
+Do NOT redesign the overall MerchX application.
+Do NOT introduce backend/database/API work.
+
+This is still a frontend-only prototype using mock data and frontend state.
+
+We received additional client feedback during the latest Route Master review. The main change is that Route Master should be a RULE CONFIGURATION experience rather than a one-store-at-a-time route entry form.
+
+==================================================
+1. CORE BUSINESS MODEL
+==================================================
+
+The Route Master configuration should start with:
+
+Vendor
++
+Merchandise Area
++
+Order Type
+
+Then configure:
+
+Delivery Calendar / Order Day
+
+And based on Order Type:
+
+DSD:
+Vendor → Merchandise Area → Store
+
+Warehouse BULK:
+Vendor → Merchandise Area → Warehouse/Plant → Store
+
+Lead Time and other route attributes are then managed for the resulting assignment.
+
+The primary setup journey should therefore be:
+
+Vendor
+→ Merchandise Area
+→ Order Type
+→ Delivery Calendar
+→ Warehouse/Plant OR Stores
+→ Store assignments
+→ Lead Time / Route details
+
+==================================================
+2. DO NOT USE STORE AS THE PRIMARY SETUP FILTER
+==================================================
+
+The client explicitly clarified that Vendor and Merchandise Area are the starting point.
+
+The current top-level setup should NOT begin with:
+
+Store
+Store No.
+Store Name
+
+Instead, the first required selections should be:
+
+1. Vendor
+2. Merchandise Area
+3. Order Type
+
+Property, Format, Warehouse, and Store should be used to narrow the resulting assignments and make navigation easier.
+
+Store remains extremely important, but it is the result of the selected routing rule rather than the primary rule definition.
+
+==================================================
+3. REDESIGN THE TOP OF ROUTE MASTER V2
+==================================================
+
+Keep the existing MerchX page structure, header, sidebar, breadcrumb, cards, filters and overall visual design.
+
+However, introduce a prominent "Route Rule Configuration" area.
+
+Use a clean horizontal or two-row configuration layout.
+
+Example:
+
+-----------------------------------------------
+ROUTE RULE CONFIGURATION
+-----------------------------------------------
+
+Vendor
+[ McLane ▼ ]
+
+Merchandise Area
+[ Snacks ▼ ]
+
+Order Type
+[ Warehouse BULK ▼ ]
+
+Delivery Calendar
+[ Mon ] [ Tue ] [ Wed ] [ Thu ] [ Fri ] [ Sat ] [ Sun ]
+
+Property
+[ All Properties ▼ ]
+
+Format
+[ All Formats ▼ ]
+
+-----------------------------------------------
+
+Do NOT make this look like a giant form.
+
+It should feel like a compact configuration header that drives the content below.
+
+==================================================
+4. VENDOR
+==================================================
+
+Vendor is REQUIRED.
+
+Use realistic mock vendors such as:
+
+- McLane
+- Red Bull Distribution
+- National Beverage Vendor
+- Regional Snacks Vendor
+- Vendor ABC
+
+Changing Vendor should update the mock data shown below.
+
+Vendor is a primary configuration dimension.
+
+==================================================
+5. MERCHANDISE AREA
+==================================================
+
+Merchandise Area is REQUIRED.
+
+Examples:
+
+- Snacks
+- Energy Drinks
+- Beverages
+- Confectionery
+- Travel Snacks
+- Reading
+
+Merchandise Area is merchandise-related.
+
+Do NOT imply that a store belongs to one Merchandise Area.
+
+A store can have multiple merchandise areas.
+
+==================================================
+6. ORDER TYPE
+==================================================
+
+Order Type is REQUIRED.
+
+Use:
+
+[ DSD ] [ Warehouse BULK ]
+
+Make the selected state very clear while staying within the existing MerchX visual language.
+
+This selection controls what appears below.
+
+==================================================
+7. DELIVERY CALENDAR
+==================================================
+
+Add a Delivery Calendar section.
+
+Use clickable day buttons rather than a single dropdown.
+
+Days:
+
+Monday
+Tuesday
+Wednesday
+Thursday
+Friday
+Saturday
+Sunday
+
+Allow MULTIPLE days to be selected.
+
+Example:
+
+[✓ Mon] [ Tue ] [✓ Wed] [ Thu ] [ Fri ] [ Sat ] [ Sun ]
+
+The user should be able to select multiple delivery/order days.
+
+Show a small helper text:
+
+"Select the days this vendor and merchandise area is scheduled for ordering."
+
+The selected days must affect the mock data below.
+
+==================================================
+8. DSD WORKFLOW
+==================================================
+
+When Order Type = DSD:
+
+The configuration flow is:
+
+Vendor
+→ Merchandise Area
+→ DSD
+→ Delivery Calendar
+→ Stores
+
+There is NO required warehouse.
+
+The lower section should show the applicable stores.
+
+Example:
+
+Selected Rule:
+
+McLane
+Snacks
+DSD
+Monday + Wednesday
+
+Then show:
+
+STORE ASSIGNMENTS
+
+| Select | Store | Store Name | Property | State | Order Day | Lead Time | Status |
+|--------|-------|------------|----------|-------|-----------|-----------|--------|
+| ✓ | S101 | Las Vegas Strip | Las Vegas Strip | NV | Mon | 2 wks | Active |
+| ✓ | S102 | Henderson Galleria | Las Vegas Strip | NV | Mon | 2 wks | Active |
+| ✓ | S103 | North Las Vegas Center | Las Vegas Strip | NV | Wed | 2 wks | Active |
+
+The user should be able to select multiple stores.
+
+==================================================
+9. WAREHOUSE BULK WORKFLOW
+==================================================
+
+When Order Type = Warehouse BULK:
+
+The configuration flow becomes:
+
+Vendor
+→ Merchandise Area
+→ Warehouse BULK
+→ Delivery Calendar
+→ Warehouse / Plant
+→ Stores
+
+Add a required:
+
+Warehouse / Plant
+
+selector.
+
+Example:
+
+Warehouse / Plant
+[ 950 – RDC Las Vegas ▼ ]
+
+After selecting the warehouse, populate the applicable stores below.
+
+The user should be able to select:
+
+- individual stores
+- multiple stores
+- Select All
+
+This is important because the client specifically called out that a BULK relationship may apply to a very large number of stores.
+
+Do NOT force the user to open a drawer and configure 500+ stores one at a time.
+
+==================================================
+10. STORE ASSIGNMENT TABLE
+==================================================
+
+The large lower table is the main working area.
+
+It should show the stores affected by the selected rule.
+
+Use:
+
+| Select | Store No. | Store Name | Property | Format | State | Warehouse | Order Day | Lead Time | Route Status |
+|--------|-----------|------------|----------|--------|-------|-----------|-----------|-----------|--------------|
+
+For DSD:
+
+Warehouse should display:
+
+—
+
+For Warehouse BULK:
+
+Warehouse should show the selected warehouse.
+
+Allow:
+
+- Select All
+- Clear All
+- Search stores
+- Filter stores
+- Individual selection
+
+Add a selected count:
+
+"124 of 716 stores selected"
+
+Use realistic mock values.
+
+==================================================
+11. PROPERTY AND FORMAT
+==================================================
+
+Property should be available in the configuration/filter area.
+
+Examples:
+
+- Las Vegas Strip
+- Orlando Resort
+- Northeast
+- Midwest
+- etc.
+
+Format should also be available as a filter.
+
+Examples:
+
+- Large
+- Medium
+- Small
+- Express
+
+Do NOT make Property or Format more important than Vendor + Merchandise Area + Order Type.
+
+They are used to narrow the applicable store set.
+
+==================================================
+12. LEAD TIME
+==================================================
+
+Lead Time remains an important Route Master attribute.
+
+Use:
+
+Lead Time (Weeks)
+
+ONLY.
+
+Do NOT reintroduce Lead Time (Days).
+
+Allow the selected rule to define a default Lead Time for the selected store assignments.
+
+Example:
+
+Default Lead Time
+[ 2 weeks ]
+
+Then show the value in the store assignment table.
+
+Allow an individual store to be adjusted if necessary through an Edit action.
+
+The prototype should demonstrate:
+
+Rule-level default
++
+Optional store-level exception
+
+Do not build backend logic.
+
+==================================================
+13. BULK ACTION / APPLY RULE
+==================================================
+
+Because the user is configuring many stores at once, add a clear action near the store table:
+
+[ Apply Rule to Selected Stores ]
+
+or:
+
+[ Save Route Rule ]
+
+Preferred flow:
+
+1. Select Vendor
+2. Select Merchandise Area
+3. Select Order Type
+4. Select Delivery Calendar
+5. Select Warehouse if BULK
+6. Select applicable stores
+7. Set default Lead Time
+8. Save Route Rule
+
+Show a confirmation state after save:
+
+"Route rule saved"
+
+"124 store assignments updated"
+
+This is frontend-only feedback.
+
+==================================================
+14. ROUTE SUMMARY
+==================================================
+
+Add a compact summary/header above the store table.
+
+Example:
+
+ROUTE RULE
+
+McLane
+Snacks
+Warehouse BULK
+RDC – Las Vegas
+Monday + Wednesday
+
+124 Stores
+2 Week Lead Time
+
+For DSD:
+
+Red Bull Distribution
+Energy Drinks
+DSD
+Tuesday
+
+86 Stores
+2 Week Lead Time
+
+This makes it very clear what the user is currently configuring.
+
+==================================================
+15. KEEP THE EXISTING ROUTE MASTER OVERVIEW
+==================================================
+
+Do NOT remove the existing Route Master overview completely.
+
+The existing table is still useful for reviewing existing assignments.
+
+Keep the overall Route Master page structure.
+
+The new experience should be:
+
+TOP:
+Route Rule Configuration
+
+BOTTOM:
+Store Assignments
+
+And the existing route overview/editing functionality can remain available as a secondary/detail experience.
+
+==================================================
+16. CHANGE THE ADD ROUTE INTERACTION
+==================================================
+
+The existing "+ Add Route" button should no longer open a tiny single-store route form.
+
+Change it to:
+
++ Add Route Rule
+
+Clicking it should open the Route Rule Configuration experience.
+
+If a separate dedicated configuration screen is cleaner, use:
+
++ Add Route Rule
+
+→ Route Rule Setup screen
+
+This is preferred over trying to squeeze hundreds of stores into a side drawer.
+
+==================================================
+17. INDIVIDUAL STORE EDITING
+==================================================
+
+Keep the ability to inspect/edit an individual assignment.
+
+For each row, provide:
+
+View / Edit
+
+This can open the existing side drawer.
+
+The drawer should show:
+
+Vendor
+Merchandise Area
+Order Type
+Warehouse
+Store
+Property
+Order Day
+Lead Time (Weeks)
+Transportation
+Temperature Controlled
+Route Status
+
+But the drawer is now for DETAIL / EXCEPTION MANAGEMENT.
+
+It should NOT be the primary way to create a large routing rule.
+
+==================================================
+18. VALIDATION
+==================================================
+
+Keep the existing validation section.
+
+Add validations relevant to the new rule structure:
+
+- Missing Vendor
+- Missing Merchandise Area
+- Missing Order Type
+- Missing Delivery Calendar
+- Missing Warehouse for Warehouse BULK
+- Missing Lead Time
+- Duplicate Route Rule
+- Inactive Store
+- Recently Modified
+
+For duplicate rules, consider:
+
+Vendor
++
+Merchandise Area
++
+Order Type
++
+Warehouse (when BULK)
+
+as the core rule identity.
+
+Use mock counts.
+
+==================================================
+19. EXAMPLE DATA
+==================================================
+
+Create realistic scenarios that demonstrate the business model.
+
+Example 1:
+
+Vendor:
+McLane
+
+Merchandise Area:
+Snacks
+
+Order Type:
+Warehouse BULK
+
+Warehouse:
+950 – RDC Las Vegas
+
+Delivery Calendar:
+Monday + Wednesday
+
+Stores:
+S101
+S102
+S103
+S104
+S105
+etc.
+
+Example 2:
+
+Vendor:
+Red Bull Distribution
+
+Merchandise Area:
+Energy Drinks
+
+Order Type:
+DSD
+
+Delivery Calendar:
+Tuesday
+
+Stores:
+S101
+S205
+S310
+
+Example 3:
+
+Vendor:
+Red Bull Distribution
+
+Merchandise Area:
+Energy Drinks
+
+Order Type:
+Warehouse BULK
+
+Warehouse:
+960 – RDC Orlando
+
+Delivery Calendar:
+Thursday
+
+Stores:
+S401
+S402
+S403
+
+This demonstrates that the same vendor/merchandise relationship can have different fulfillment paths for different stores.
+
+==================================================
+20. IMPORTANT — DAY SELECTION BEHAVIOR
+==================================================
+
+The Delivery Calendar must support multiple days.
+
+Do NOT force one day per route rule.
+
+For example:
+
+McLane
++
+Snacks
++
+Warehouse BULK
++
+Monday + Wednesday
+
+is valid.
+
+The selected days should appear in the route summary and store assignment table.
+
+==================================================
+21. KEEP THE EXISTING VISUAL DESIGN
+==================================================
+
+This is NOT a redesign.
+
+Preserve the existing Route Master V2:
+
+- MerchX sidebar
+- Header
+- Breadcrumb
+- Page title
+- Typography
+- Colors
+- Purple accent
+- Cards
+- Filters
+- Table styling
+- Status badges
+- Existing spacing
+- Existing shadows
+- Existing icons
+- Existing responsive behavior
+
+The new configuration experience should look like it belongs inside the existing MerchX application.
+
+==================================================
+22. FRONTEND ONLY
+==================================================
+
+Use mock data and frontend state.
+
+DO NOT implement:
+
+- database
+- APIs
+- backend
+- real vendor integrations
+- real warehouse integrations
+- real SIP logic
+- real order generation
+- real replenishment logic
+- real delivery scheduling
+
+The goal is a polished UI prototype that demonstrates the intended workflow.
+
+==================================================
+23. MOST IMPORTANT UX PRINCIPLE
+==================================================
+
+The screen should communicate this workflow immediately:
+
+1. WHO supplies it?
+   → Vendor
+
+2. WHAT merchandise does it apply to?
+   → Merchandise Area
+
+3. HOW is it ordered?
+   → DSD or Warehouse BULK
+
+4. WHEN is it ordered?
+   → Delivery Calendar
+
+5. WHERE does it flow?
+   → Warehouse/Plant for BULK, Stores for DSD
+
+6. WHICH stores are affected?
+   → Store Assignment Table
+
+7. WHAT is the lead time?
+   → Lead Time (Weeks)
+
+The user should NOT have to configure every store individually.
+
+The main interaction is configuring a rule and applying it to a set of stores.
+
+==================================================
+24. FINAL CHECK
+==================================================
+
+Before finishing, verify these scenarios:
+
+SCENARIO A — DSD
+
+Vendor = Red Bull
+Merchandise Area = Energy Drinks
+Order Type = DSD
+Order Days = Tuesday
+Stores = multiple stores
+
+Result:
+Multiple stores can be selected and assigned without a warehouse.
+
+SCENARIO B — WAREHOUSE BULK
+
+Vendor = McLane
+Merchandise Area = Snacks
+Order Type = Warehouse BULK
+Warehouse = RDC Las Vegas
+Order Days = Monday + Wednesday
+Stores = multiple/all applicable stores
+
+Result:
+Warehouse is required and multiple stores can be assigned at once.
+
+SCENARIO C — SAME VENDOR, DIFFERENT FULFILLMENT
+
+Red Bull + Energy Drinks + Store A = DSD
+
+Red Bull + Energy Drinks + Store B = Warehouse BULK
+
+Result:
+Both relationships can coexist.
+
+SCENARIO D — MULTIPLE DAYS
+
+McLane + Snacks + Warehouse BULK
+Monday + Wednesday
+
+Result:
+Both days are visibly selected and represented in the resulting assignments.
+
+Again:
+
+ONLY MODIFY ROUTE MASTER V2.
+
+DO NOT MODIFY THE ORIGINAL ROUTE MASTER.
+
+The final result should be a polished, presentation-ready prototype of the new Route Master rule configuration workflow.

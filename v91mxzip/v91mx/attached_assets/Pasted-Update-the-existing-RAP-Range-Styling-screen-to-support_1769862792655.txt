@@ -1,0 +1,200 @@
+Update the existing RAP → Range Styling screen to support assigning Style Grades by Merchandise Area, with optional exception rules.
+Do not redesign global layout, fonts, colors, spacing, navigation, or table components.
+Focus only on screen structure, filters, editability, and exception handling.
+
+1. Screen intent (anchor this clearly)
+
+This screen allows a planner to:
+
+Assign a Grade to each Style
+
+Scoped by Merchandise Area
+
+Using product hierarchy filters
+
+With the ability to define exceptions where a style should not be ranged under specific conditions
+
+This is a classification + exception screen, not allocation or eligibility execution.
+
+2. Mandatory entry condition (empty state)
+
+Screen loads in an empty state
+
+Show placeholder message:
+
+“Select a Merchandise Area to begin range styling”
+
+No table or data appears until:
+
+a Merchandise Area is selected
+
+3. Context filters (top of screen)
+
+Once Merchandise Area is selected, enable product filters:
+
+Planning Group
+
+Sub Planning Group
+
+Optional:
+
+Brand
+
+Lifecycle (if already present)
+
+Filters narrow the list of styles shown.
+
+4. Main table — Style grading
+
+Each row represents one Style.
+
+Required columns (left → right)
+
+Style ID (read-only)
+
+Style Description (read-only)
+
+Planning Group (read-only)
+
+Sub Planning Group (read-only)
+
+Performance Metrics (read-only, compact)
+
+Sales
+
+Units
+
+Store Coverage (if available)
+
+Assigned Style Grade ✅ editable
+
+Dropdown
+
+Values limited to:
+
+grades enabled for the selected Merchandise Area
+
+sourced from Determine Grading Size
+
+Exceptions ✅ interactive
+
+Indicator showing:
+
+“None” or
+
+“X Exceptions”
+
+Clickable to manage exceptions
+
+Status (read-only)
+
+Optional (e.g. “Graded”, “Has Exceptions”)
+
+5. Style grade assignment rules
+
+Style Grade is:
+
+assigned per style
+
+scoped per Merchandise Area
+
+Dropdown options must:
+
+exclude grades hidden for that Merchandise Area
+
+Changing a style grade:
+
+does not auto-create exceptions
+
+applies globally unless overridden by exceptions
+
+6. Exception handling (core new feature)
+How exceptions should work (UX, not logic-heavy)
+
+Clicking the Exceptions cell opens:
+
+a modal or side panel
+
+Planner can add one or more exception rules
+
+Each exception rule consists of:
+
+Condition type (one or more):
+
+Region
+
+Channel
+
+Format
+
+Condition value(s) (multi-select)
+
+Result:
+
+“Exclude style” (default)
+
+(No partial grading logic required)
+
+Example:
+
+Exclude this style when
+Region = North
+AND Channel = Non-Air
+
+Exception behavior
+
+Exceptions are:
+
+optional
+
+additive (multiple exceptions allowed)
+
+Exceptions do NOT change:
+
+the base style grade
+
+They only override inclusion under specific conditions
+
+The main table should visually indicate when exceptions exist
+
+No conflict resolution logic required.
+
+7. What this screen must NOT do
+
+❌ Do not assign store grades
+
+❌ Do not show SKU-level rows
+
+❌ Do not calculate SKU counts
+
+❌ Do not apply eligibility rules directly
+
+❌ Do not simulate allocation
+
+This screen defines intent, not execution.
+
+8. Data assumptions (safe for mock)
+
+Styles list can be static
+
+Performance metrics can be mocked
+
+Exception conditions can be static option lists
+
+No backend wiring required
+
+9. Acceptance checklist
+
+Screen is empty until Merchandise Area is selected
+
+Planner can:
+
+assign a grade to each style
+
+add and view exceptions per style
+
+Exceptions are easy to add without cluttering the table
+
+Base grading remains visible even with exceptions
+
+Output clearly feeds Determine Facings & Presentation

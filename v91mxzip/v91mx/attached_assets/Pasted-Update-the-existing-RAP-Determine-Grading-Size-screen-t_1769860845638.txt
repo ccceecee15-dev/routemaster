@@ -1,0 +1,155 @@
+Update the existing RAP → Determine Grading Size screen to reflect the revised planner workflow below.
+Do not redesign global layout, fonts, colors, spacing, or navigation.
+Focus only on screen behavior, structure, and planner controls.
+
+1. Screen intent (anchor this clearly)
+
+This screen allows a planner, by Merchandise Area, to:
+
+Define SKU count per Store Grade
+
+Define which Fixture Types are valid for each Grade
+
+Reference historical average SKU counts by Grade and Store Format
+
+Optionally exclude grades that do not apply to a given Merchandise Area
+
+This is a policy / setup screen, not execution.
+
+2. Empty state behavior (required)
+
+The screen must load in an empty state by default.
+
+Show a clear placeholder message:
+
+“Select a Merchandise Area to begin grading setup”
+
+No tables, values, or mock data should appear until:
+
+a Merchandise Area is selected
+
+3. Primary planner table (main interaction surface)
+
+Once a Merchandise Area is selected, display a table with:
+
+Rows
+
+One row per Store Grade (XS, S, M, L, XL, MEGA)
+
+Columns
+
+Store Grade (read-only label)
+
+SKU Count ✅ editable
+
+Numeric input
+
+Represents target number of SKUs for that grade
+
+Allowed Fixture Types ✅ editable
+
+Multi-select or checkbox-style control
+
+Values sourced from Fixture Types already defined (e.g. Wall, Spinner, Peg)
+
+Grade Active (toggle / hide control)
+
+Allows planner to exclude a grade for this Merchandise Area
+
+4. Grade hiding behavior (important)
+
+Planner can toggle a grade off for the selected Merchandise Area
+
+When a grade is hidden:
+
+It is visually muted or removed from the table
+
+It is excluded from downstream RAP steps
+
+Grades can be re-enabled at any time
+
+Grade visibility is Merchandise Area–specific
+
+Example:
+
+Ear Buds → S, M, XL, MEGA
+
+Books → XS, S, M, L, XL, MEGA
+
+5. Historical reference table (secondary, read-only)
+
+Above the main planner table, display a compact reference table showing:
+
+Historical average SKU count
+
+Grouped by:
+
+Store Grade
+
+Store Format (7 formats, per Excel)
+
+This table:
+
+Is read-only
+
+Exists purely for planner context
+
+Should visually read as “reference”, not “input”
+
+Suggested labeling:
+
+“Historical Average SKU Count (Reference)”
+
+6. Filtering & context controls
+
+Merchandise Area selector is mandatory
+
+Optional filters (if already present) may remain:
+
+Channel
+
+Format
+
+No data shown until Merchandise Area is selected
+
+7. What this screen must NOT do
+
+❌ Do not show SKU-level rows
+
+❌ Do not calculate capacity
+
+❌ Do not validate shelf fit
+
+❌ Do not auto-recommend SKU counts
+
+❌ Do not pull in store-level data
+
+Those belong to later RAP steps.
+
+8. Data assumptions (safe for mock)
+
+Store Grades are fixed (XS → MEGA)
+
+Store Formats = 7 (as per Excel)
+
+Historical values can be static mock values
+
+Fixture types can be mocked consistently
+
+No backend logic required
+
+9. Acceptance checklist
+
+Screen is empty until Merchandise Area is chosen
+
+Planner can:
+
+edit SKU count per grade
+
+choose fixture types per grade
+
+hide grades per Merchandise Area
+
+Historical table is visible but non-editable
+
+Output clearly feeds Grade Store and downstream RAP steps

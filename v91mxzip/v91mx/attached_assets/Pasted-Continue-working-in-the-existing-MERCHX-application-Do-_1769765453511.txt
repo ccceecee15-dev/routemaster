@@ -1,0 +1,185 @@
+Continue working in the existing MERCHX application.
+
+Do not change any global styling, fonts, colours, spacing, sidebar layout, or table components.
+The design system is already correct.
+
+This task updates the RAP → Store Grading screen to behave much closer to the Excel reference.
+
+Scope
+
+Only update:
+
+RAP → Store Grading
+
+Do not modify:
+
+Other RAP screens
+
+SIP screens
+
+Sidebar structure
+
+Any backend logic
+
+This is a UI and interaction refinement only.
+
+Purpose of this Screen
+
+This screen assigns store grades and shows how those grades translate into SKU capacity by Product Group.
+
+It must feel like:
+
+a master data table
+
+sortable, filterable
+
+designed for scanning and spot-adjustment
+
+Not like a step-by-step flow.
+
+Screen Structure (keep existing layout)
+1. Page Header
+
+Title:
+
+Store Grading
+
+Optional subtitle (muted):
+
+“Assign store grades and SKU capacity”
+
+2. Filters (Top)
+
+Add / retain filters similar to Excel context:
+
+Merchandise Area
+
+Format
+
+Region (if already available)
+
+Store
+
+Apply button stays consistent with other RAP screens.
+
+3. Main Table (Excel-style)
+
+The table should closely mirror the Excel columns and hierarchy.
+
+Each row = one store
+
+Required Columns (Excel-aligned)
+
+Store Context
+
+Format
+
+Store #
+
+Store Name
+
+Store Attributes
+
+Selling Space (sqft)
+
+Annual Sales
+
+Grading
+
+Store Grade (XS / S / M / L / XL / Mega)
+
+Editable (dropdown)
+
+Changes should immediately reflect SKU capacity numbers
+
+Capacity
+
+Total No. of SKUs (derived / displayed)
+
+SKU Distribution by PG
+
+TRUE WRSS IN EAR
+
+WIRED IN EAR
+
+WIRELESS IN EAR
+
+These columns:
+
+Are read-only
+
+Represent how SKU capacity is distributed once grading is applied
+
+Can be empty or zero if not applicable
+
+Interaction Rules (important)
+
+Store Grade is the only editable field
+
+All SKU count columns are derived / read-only
+
+Changing grade should:
+
+update “Total No. of SKUs”
+
+update PG-level SKU counts visually
+
+No calculations need to be correct — but the relationships must look correct.
+
+Visual Behaviour (match Excel intent)
+
+Table should be dense and scan-friendly
+
+Numbers aligned consistently
+
+SKU count columns visually grouped
+
+No cards, charts, or callouts
+
+This should feel like:
+
+“Excel, but clean and modern”
+
+What NOT to Add
+
+Do not add:
+
+Store-level SKU lists
+
+Allocation
+
+Eligibility toggles
+
+Facings
+
+Presentation controls
+
+This screen is grading only.
+
+Success Criteria
+
+This screen is correct if:
+
+A merchandiser can scroll and compare stores easily
+
+Grades clearly drive SKU capacity
+
+It feels like a master reference table, not a workflow step
+
+The Excel screenshot could be removed without losing meaning
+
+Visual Sanity Check
+
+If a user asks:
+
+“Why does Store 0876 have 80 SKUs?”
+
+They should be able to answer by looking at:
+
+Selling space
+
+Grade
+
+Without clicking anywhere else
+
+If that’s true, the screen is working as intended.

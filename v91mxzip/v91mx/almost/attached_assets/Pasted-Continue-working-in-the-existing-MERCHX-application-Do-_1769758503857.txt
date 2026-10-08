@@ -1,0 +1,146 @@
+Continue working in the existing MERCHX application.
+
+Do not change any global styling, layout, colours, fonts, spacing, or base UI components.
+The design system is already correct.
+
+This task adds the SIP → Manage Event Uplift screen using existing UI patterns only.
+
+Scope
+
+Only implement:
+
+SIP → Manage Event Uplift
+
+Do not modify:
+
+Other SIP screens
+
+RAP screens
+
+Sidebar styling
+
+Backend logic or calculations
+
+Other SIP tabs can remain placeholders.
+
+Purpose
+
+This screen defines event-based demand uplift rules that are used during forecast generation.
+
+It does not display forecast results or allocation.
+
+Screen Layout
+
+Use existing MERCHX patterns:
+
+Page header
+
+Filter bar
+
+Main table inside a card
+
+No new layout patterns.
+
+1. Page Header
+
+Title:
+
+Manage Event Uplift
+
+Optional subtitle (muted):
+
+“Define demand uplift rules for forecast generation”
+
+2. Context Filters
+
+Reuse existing filter components.
+
+Filters:
+
+Merchandise Area
+
+Category / Sub-Category
+
+Season
+
+Include Apply button.
+
+3. Event Uplift Table
+
+Use an existing table component.
+
+Each row represents one event uplift rule.
+
+Columns
+
+Event Context
+
+Event Name
+
+Event Type
+
+Scope
+
+Applies To (Category / Sub-Category / SKU)
+
+Time Window
+
+Start Week / Date
+
+End Week / Date
+
+Decision
+
+Uplift % (or Factor, consistent with Excel)
+
+Control
+
+Active (Yes / No toggle)
+
+4. Interaction Rules
+
+Rows can be added, edited, or toggled Active/Inactive
+
+No validation logic required
+
+Values can be mocked but should look realistic
+
+Overlapping events are allowed
+
+5. What NOT to Show
+
+Do not show:
+
+Forecast outputs
+
+Weekly demand
+
+Stores
+
+Allocation
+
+Vendor or DC information
+
+Success Criteria
+
+When finished:
+
+It is clear which events affect demand
+
+Uplift rules are easy to scan and manage
+
+The screen clearly feeds Generate Forecast
+
+It feels like a setup step, not a planning step
+
+Sanity check
+
+If a user asks:
+
+“Why did forecast spike in week 42?”
+
+The answer should be:
+
+“Because of an event uplift defined here.”
+
+If that answer works, the screen is correct.

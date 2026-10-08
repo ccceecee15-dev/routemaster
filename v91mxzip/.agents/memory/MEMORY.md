@@ -1,0 +1,1 @@
+- [Route Master V2 scope and layout](route-master-v2-layout.md) — modify V2 only; preserve its overview and edit flow and keep wide tables in nested scroll areas.

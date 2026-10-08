@@ -1,0 +1,210 @@
+This is a small follow-up refinement to the existing Route Master V2. Please build on the current implementation and DO NOT redesign or refactor the existing Route Master screen.
+
+The main Route Master overview is already good. Keep it as-is.
+
+The only change we need is to improve the "+ Add Route Rule" experience.
+
+CURRENT STATE:
+The existing Route Master overview shows the current routes and allows users to edit them. Keep this functionality.
+
+NEW REQUIREMENT:
+When the user clicks "+ Add Route Rule", instead of opening the current small side drawer/form, open a simple dedicated creation flow.
+
+The purpose is to create a NEW vendor/merchandise routing relationship and apply it to multiple stores. This is NOT an edit flow.
+
+Keep this lightweight and frontend-only with mock data. Do not add backend logic, APIs, database work, or restructure the application.
+
+---
+
+### CREATE ROUTE RULE
+
+Open a dedicated page/modal-style full-screen workflow titled:
+
+Create Route Rule
+
+Add a simple 3-step progress indicator:
+
+1. Define Rule
+2. Select Stores
+3. Review
+
+Keep the existing MerchX styling, components, colors, typography, spacing, and navigation.
+
+---
+
+### STEP 1 — DEFINE RULE
+
+Show these fields prominently:
+
+Vendor
+[ Select Vendor ]
+
+Merchandise Area
+[ Select Merchandise Area ]
+
+Order Type
+[ DSD ] [ Bulk ]
+
+Delivery Calendar
+[ Mon ] [ Tue ] [ Wed ] [ Thu ] [ Fri ] [ Sat ] [ Sun ]
+
+Allow multiple delivery days to be selected.
+
+If Order Type = Bulk, show:
+
+Warehouse / Plant
+[ Select Warehouse ]
+
+If Order Type = DSD, the warehouse field is not required.
+
+Also include:
+
+Property
+[ All Properties ]
+
+Format
+[ All Formats ]
+
+These are supporting selections/filters, not the primary starting point.
+
+The hierarchy should visually feel like:
+
+Vendor + Merchandise Area
+↓
+Order Type
+↓
+Delivery Calendar
+↓
+Warehouse if Bulk
+↓
+Store selection
+
+---
+
+### STEP 2 — SELECT STORES
+
+After clicking Continue, show:
+
+Configure Store Assignments
+
+At the top, show a compact summary of the rule that was just defined.
+
+Example:
+
+McLane
+Snacks
+Bulk
+RDC Las Vegas
+Monday + Wednesday
+
+Then show:
+
+Applicable Stores
+
+[ Search stores ]
+
+Filters:
+- Property
+- Format
+- State
+
+Show a table with:
+
+Select | Store No. | Store Name | Property | Format | State
+
+Include:
+- Select All
+- Individual checkboxes
+- Selected count
+
+Example:
+
+124 of 992 stores selected
+
+The important UX point is that the user should be able to apply the newly created rule to MANY stores at once.
+
+Do not make the user open/edit each store individually.
+
+Use mock data.
+
+---
+
+### STEP 3 — REVIEW
+
+Show:
+
+Review Route Rule
+
+Vendor
+McLane
+
+Merchandise Area
+Snacks
+
+Order Type
+Bulk
+
+Warehouse
+RDC Las Vegas
+
+Delivery Calendar
+Monday + Wednesday
+
+Stores
+124 selected
+
+Then provide:
+
+Back
+Create Route Rule
+
+When Create Route Rule is clicked, show a simple success state:
+
+Route Rule Created
+
+124 store assignments have been created.
+
+Button:
+
+Back to Route Master
+
+Use mock state so the newly created assignments can appear in the existing overview after returning.
+
+---
+
+### IMPORTANT
+
+Do NOT change the existing Route Master overview.
+
+Do NOT redesign the table.
+
+Do NOT remove the existing filters.
+
+Do NOT change the existing edit experience.
+
+Do NOT introduce backend/API/database work.
+
+Do NOT refactor unrelated components.
+
+Do NOT create a complex wizard.
+
+This is simply a lightweight creation flow that sits on top of the existing Route Master.
+
+The intended UX is:
+
+Existing Route Master
+→ view existing routes
+→ edit existing routes when needed
+
+OR
+
+Existing Route Master
+→ + Add Route Rule
+→ Define Vendor / Merchandise Area / Order Type
+→ Select applicable stores
+→ Review
+→ Create
+
+The key improvement is separating CREATION from EDITING.
+
+Please make the smallest set of changes necessary to achieve this and reuse the existing components wherever possible.

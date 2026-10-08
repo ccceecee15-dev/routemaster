@@ -1,0 +1,47 @@
+[
+  {
+    "store_id": "S01",
+    "name": "Heathrow T3 - WHSmith",
+    "format": "Airport",
+    "capacity": 1200,
+    "footfall_index": 1.8,
+    "region": "London",
+    "safety_stock": 150
+  },
+  {
+    "store_id": "S02",
+    "name": "Victoria Station",
+    "format": "Rail",
+    "capacity": 800,
+    "footfall_index": 2.5,
+    "region": "London",
+    "safety_stock": 100
+  },
+  {
+    "store_id": "S03",
+    "name": "Oxford Street",
+    "format": "High Street",
+    "capacity": 2500,
+    "footfall_index": 1.5,
+    "region": "London",
+    "safety_stock": 300
+  },
+  {
+    "store_id": "S04",
+    "name": "Manchester Arndale",
+    "format": "High Street",
+    "capacity": 1800,
+    "footfall_index": 1.3,
+    "region": "North",
+    "safety_stock": 200
+  },
+  {
+    "store_id": "S05",
+    "name": "Gatwick North",
+    "format": "Airport",
+    "capacity": 1100,
+    "footfall_index": 1.7,
+    "region": "South",
+    "safety_stock": 140
+  }
+]

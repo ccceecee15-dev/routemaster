@@ -1,0 +1,147 @@
+This is a continuation of the existing MerchX application.
+
+I found the existing Route Master screen and want to use it as the starting point for a new V2 version.
+
+IMPORTANT:
+Do NOT redesign, refactor, or modify the existing Route Master screen in place.
+
+First, create an exact duplicate/copy of the existing Route Master screen so that we have a safe working version to modify.
+
+==================================================
+1. DUPLICATE THE EXISTING ROUTE MASTER
+==================================================
+
+Find the existing Route Master screen currently available in the application.
+
+Create a new duplicate route/page called:
+
+Route Master V2
+
+The new Route Master V2 should initially be a visual and functional copy of the existing Route Master.
+
+Preserve:
+
+- MerchX sidebar/navigation
+- Breadcrumbs
+- Page header
+- Route Master title
+- Subtitle
+- Add Route button
+- KPI cards
+- Search
+- Filter bar
+- Validation bar
+- Main Route Master table
+- Table styling
+- Sorting
+- Status badges
+- Existing drawer/modal
+- Existing Add Route interaction
+- Existing Edit Route interaction
+- Existing mock data
+- Existing typography
+- Existing spacing
+- Existing colors
+- Existing icons
+- Existing responsive behavior
+
+Do not simplify the existing screen.
+
+Do not remove existing functionality.
+
+Do not change the visual design at this stage.
+
+==================================================
+2. IMPORTANT — KEEP THE ORIGINAL SAFE
+==================================================
+
+The existing Route Master must remain unchanged.
+
+Do NOT:
+
+- overwrite the original Route Master
+- rename the original Route Master
+- delete the original Route Master
+- change its existing mock data
+- change its existing components if doing so would affect the original
+- refactor shared components in a way that changes the original screen
+
+If shared components are reused, make sure changes made for Route Master V2 do not alter the original Route Master.
+
+If necessary, duplicate the relevant components for V2.
+
+==================================================
+3. NEW ROUTE
+==================================================
+
+Make Route Master V2 accessible through a new route/navigation entry.
+
+Use a clear route such as:
+
+/route-master-v2
+
+Keep the original Route Master accessible exactly as it is.
+
+For the V2 page header, use:
+
+Route Master V2
+
+Subtitle:
+
+Manage vendor, merchandise area, store routing and ordering schedules.
+
+==================================================
+4. FRONTEND ONLY
+==================================================
+
+This is a UI prototype.
+
+Do NOT build:
+
+- backend services
+- database changes
+- APIs
+- authentication
+- real SIP logic
+- real replenishment calculations
+- real order generation
+- real DSD processing
+- real warehouse allocation logic
+
+Use mock data and frontend state only.
+
+==================================================
+5. VERIFY THE DUPLICATE
+==================================================
+
+Before making any new business-rule changes, verify that Route Master V2 visually matches the existing Route Master.
+
+The objective of this step is simply:
+
+EXISTING ROUTE MASTER
+        ↓
+EXACT DUPLICATE
+        ↓
+ROUTE MASTER V2
+
+Do not begin redesigning the V2 screen yet.
+
+==================================================
+6. AFTER DUPLICATION
+==================================================
+
+Once the duplicate is working, leave the V2 screen ready for the next iteration.
+
+The next iteration will modify Route Master V2 to support:
+
+- Vendor + Merchandise Area → Store route assignments
+- DSD and Warehouse BULK order types
+- Day of Week assignment
+- Warehouse as conditional for Warehouse BULK
+- Vendor filtering
+- Order Type filtering
+- Order Day filtering
+
+But DO NOT implement those changes in this step.
+
+First make the exact duplicate.

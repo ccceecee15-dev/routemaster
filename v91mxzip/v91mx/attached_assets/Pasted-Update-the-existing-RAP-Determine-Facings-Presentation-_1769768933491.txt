@@ -1,0 +1,153 @@
+Update the existing RAP → Determine Facings & Presentation screen so it mirrors the Excel shelfPlanning / Presentation logic exactly.
+Do not redesign global UI, fonts, colors, spacing, or navigation.
+Focus on structure, editability, and cause-effect clarity only.
+
+1. Screen purpose (do not change)
+
+This screen is a capacity validation step, not a planning step.
+
+Users edit SKU-level facings
+
+The system shows aggregate capacity pressure
+
+Top summaries are derived only, never editable
+
+2. Screen layout (must match Excel intent)
+A. Top summary section (read-only)
+
+Display two compact matrices, stacked or side-by-side:
+
+Facings Summary
+
+Rows = Product Group (e.g. TRUE WRSS IN EAR, WIRED IN EAR)
+
+Columns = Store Grade (XS, S, M, L, XL, MEGA)
+
+Values = net facings over / under
+
+Negative values visually flagged (soft red)
+
+On-shelf Capacity Summary
+
+Same row/column structure
+
+Values = net physical capacity over / under
+
+Negative values visually flagged
+
+This is a diagnostic view only
+
+👉 These values must update immediately when SKU rows change.
+
+B. SKU-level detail table (editable surface)
+
+Each row = one SKU
+
+Required columns (in this order):
+
+Product Group (read-only)
+
+SKU ID (read-only)
+
+SKU Description (read-only)
+
+SKU Grade (read-only; informational only)
+
+No. of Facings ✅ editable
+
+Single Capacity (read-only)
+
+Allocation (read-only or auto-derived)
+
+Total On-shelf (derived, read-only)
+
+3. Editability rules (critical)
+
+Only one field is user-editable:
+
+✅ No. of Facings
+
+Everything else is:
+
+derived
+
+informational
+
+or constraint-based
+
+Do NOT allow edits to:
+
+Single Capacity
+
+Allocation
+
+Total On-shelf
+
+Summary matrices
+
+4. Calculation behavior (UI-level only)
+
+For each SKU row:
+
+Total On-shelf = No. of Facings × Single Capacity
+
+
+Top summaries:
+
+Sum Total On-shelf by:
+
+Product Group
+
+Store Grade
+
+Compare against pre-set capacity
+
+Display net over / under values
+
+No formulas need to be shown — just reflect the behavior.
+
+5. Cause → effect clarity (visual)
+
+When a user edits No. of Facings:
+
+The row’s Total On-shelf updates
+
+The relevant Product Group / Store Grade cells update above
+
+Use subtle highlight or flash to show what changed
+
+Do NOT animate excessively
+
+6. What this screen must NOT do
+
+❌ Do not introduce shelf inches / cm
+
+❌ Do not allow editing summary cells
+
+❌ Do not add store-level identifiers
+
+❌ Do not mix in eligibility or ranging logic
+
+❌ Do not add “recommendations” or automation
+
+7. Data assumptions (safe for mock)
+
+Store Grade is implied from context/filter
+
+Capacity values are mocked but consistent
+
+SKU list can be static
+
+No backend wiring required
+
+8. Acceptance check (must pass)
+
+Editing one SKU changes top totals
+
+Top matrices are read-only
+
+SKU table is the only interaction surface
+
+Screen clearly answers:
+
+“Does this range physically fit on the shelf?”

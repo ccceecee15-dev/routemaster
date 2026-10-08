@@ -1,0 +1,236 @@
+Update the RAP → Determine Facings & Presentation flow to be store-driven, aligned with fixture-based capacity planning.
+Do not change global styling, fonts, colors, spacing, navigation, or base components.
+Focus only on screen flow, structure, and interaction model.
+
+1. Screen intent (lock this)
+
+This step allows a planner to:
+
+Select a Store
+
+View that store’s fixture-based capacity
+
+See eligible styles for that store
+
+Assign Facings and Depth per style
+
+Validate usage against store capacity
+
+This is a store-level physical feasibility screen.
+
+2. Entry & empty state
+
+Screen loads in an empty state
+
+Show placeholder:
+
+“Select a Merchandise Area and Store to define facings and presentation”
+
+No data is shown until:
+
+Merchandise Area is selected
+
+Store filters are applied
+
+3. Screen A — Store selection view (top-level)
+Filters (top)
+
+Merchandise Area (mandatory)
+
+Format
+
+Channel
+
+Region
+
+Property
+
+Terminal
+
+Store list table (main table)
+
+Each row = one store
+
+Required columns:
+
+Store ID
+
+Store Name
+
+Format
+
+Channel
+
+Region / Property / Terminal
+
+Fixture Summary (read-only)
+
+e.g. “Wall + Spinner”
+
+Total Facings Capacity (read-only)
+
+Total Presentation Capacity (read-only)
+
+Status (e.g. OK / Over Capacity / Not Configured)
+
+Action: View Store
+
+No editing happens on this screen.
+
+4. Drill-down behavior (required)
+
+Clicking View Store navigates to Screen B
+
+Context (Merch Area + Store) is carried forward
+
+No modal — this should feel like a full screen
+
+5. Screen B — Store facings & presentation detail
+A. Store summary card (top)
+
+Show a compact card with:
+
+Store details
+
+Store Name / ID
+
+Format
+
+Channel
+
+Fixture Types (from Fixture Master)
+
+Capacity trackers
+
+Facings Used / Total Facings
+
+Presentation Used / Total Presentation
+
+Trackers should:
+
+Update live as values change
+
+Visually show pressure (neutral → warning)
+
+B. Eligible styles table (main interaction surface)
+
+Each row = one eligible style for this store
+
+Eligibility is derived from:
+
+Range Styling
+
+Store Grade
+
+Exceptions
+
+Fixture compatibility
+
+Required columns
+
+Style ID (read-only)
+
+Style Description (read-only)
+
+Planning Group / Sub Planning Group (read-only)
+
+Style Grade (read-only)
+
+Facings ✅ editable
+
+Depth ✅ editable
+
+Presentation (read-only)
+
+Derived as:
+Presentation = Facings × Depth
+
+Status / Validation (read-only)
+
+e.g. OK / Exceeds Facings / Exceeds Presentation
+
+6. Editability rules (critical)
+
+Editable:
+
+Facings
+
+Depth
+
+Read-only:
+
+Presentation
+
+Eligibility
+
+Capacities
+
+Store details
+
+No bulk editing required.
+
+7. Live validation behavior
+
+When the user edits:
+
+Facings or Depth on any row
+
+The system must:
+
+Recalculate Presentation for that row
+
+Update:
+
+Facings used vs total
+
+Presentation used vs total
+
+Update status indicators immediately
+
+No hard blocking required — warnings are sufficient.
+
+8. What this screen must NOT do
+
+❌ Do not allow editing fixture types
+
+❌ Do not show SKU-level rows
+
+❌ Do not allocate inventory
+
+❌ Do not forecast demand
+
+❌ Do not apply replenishment logic
+
+This is physical shelf planning only.
+
+9. Data assumptions (safe for mock)
+
+Fixture capacity values can be mocked
+
+Eligible styles list can be static
+
+Totals do not need to be mathematically perfect
+
+Cause → effect must be visually correct
+
+10. Acceptance checklist
+
+Planner starts from store list
+
+Drills into one store
+
+Sees:
+
+store fixtures
+
+capacity
+
+eligible styles
+
+Assigns facings & depth per style
+
+Capacity trackers update live
+
+Screen clearly answers:
+
+“Does this store’s shelf setup work?”

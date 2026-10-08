@@ -1,0 +1,188 @@
+Continue working in the existing MERCHX application.
+
+Do not change any global styling, layout, fonts, colours, spacing, or base UI components.
+The design system is already correct.
+
+This task adds the SIP → Vendor View screen using existing UI patterns only.
+
+Scope
+
+Only implement:
+
+SIP → Vendor View
+
+Do not modify:
+
+Allocation View
+
+Generate Forecast
+
+Manage Event Uplift
+
+RAP screens
+
+Sidebar styling
+
+Other SIP tabs remain as already implemented.
+
+Purpose
+
+This screen provides a vendor-level roll-up of forecast and allocation to support purchasing and supply conversations.
+
+It does not allow allocation or forecast editing.
+
+Screen Layout
+
+Follow existing MERCHX patterns:
+
+Page header
+
+Filter bar
+
+Main table inside a card
+
+Optional drill-down view
+
+No new layouts.
+
+1. Page Header
+
+Title:
+
+Vendor View
+
+Optional subtitle (muted):
+
+“Review forecast and allocation by vendor”
+
+2. Context Filters
+
+Reuse existing filter components.
+
+Filters:
+
+Vendor
+
+Merchandise Area
+
+Category / Sub-Category
+
+Season
+
+Forecast Horizon
+
+Include Apply button.
+
+3. Vendor Summary Table
+
+Use an existing table component.
+
+Each row represents one vendor.
+
+Columns
+
+Vendor
+
+Vendor Name
+
+Vendor Code
+
+Demand
+
+Total Forecast Units
+
+Avg Weekly Demand
+
+SKU Count
+
+Supply Signal
+
+Total Alloc / DSD
+
+Net Requirement
+
+Status (OK / Short / Excess)
+
+Action
+
+View SKUs (drill-down)
+
+4. Vendor Drill-Down
+
+When “View SKUs” is selected:
+
+Show a secondary table listing SKUs for that vendor
+
+Columns:
+
+SKU
+
+Description
+
+Forecast Units
+
+Alloc / DSD
+
+Net Requirement
+
+Status
+
+No weekly breakdown.
+
+5. Upload PO Action
+
+Add a button:
+
+Upload PO
+
+Behavior:
+
+Opens modal / drawer
+
+File upload + preview only
+
+No validation or processing logic required
+
+6. Interaction Rules
+
+All values are read-only
+
+Drill-down is navigational only
+
+Data can be mocked but should be realistic
+
+7. What NOT to Show
+
+Do not show:
+
+Stores
+
+Weekly or daily grids
+
+Allocation controls
+
+Replenishment rules
+
+Success Criteria
+
+When finished:
+
+Vendor demand is easy to understand
+
+Purchase conversations are supported
+
+The screen feels downstream of Allocation
+
+SIP feels complete end-to-end
+
+Final sanity check (important)
+
+If a user asks:
+
+“Where do I change what we send to this vendor?”
+
+The correct answer should be:
+
+“In Allocation — this screen just shows the outcome.”
+
+If that holds true, Vendor View is correct.

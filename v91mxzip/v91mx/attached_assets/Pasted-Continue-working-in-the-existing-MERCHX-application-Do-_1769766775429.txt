@@ -1,0 +1,146 @@
+Continue working in the existing MERCHX application.
+
+Do not change global styling, fonts, colours, spacing, layout, sidebar, or base components.
+The current design system is correct and must be reused as-is.
+
+This task refines the RAP → Determine Facings & Presentation screen to better align with the Excel (Presentation and shelfPlanning) and RAP intent.
+
+Scope (important)
+
+Only adjust:
+
+RAP → Determine Facings & Presentation
+
+Do NOT modify:
+
+Other RAP screens
+
+SIP screens
+
+Sidebar structure
+
+Filters behaviour
+
+Any backend logic
+
+This is UI structure + semantics only.
+
+Core Fixes to Apply
+1️⃣ Fix the row model (critical)
+
+Change the table so that:
+
+Each row represents ONE SKU
+
+Remove repeated / scenario-style rows for the same SKU
+
+There should NOT be multiple rows for the same SKU showing different facings.
+
+2️⃣ Make Store Grade explicit
+
+Facings & Presentation are defined per Store Grade, not globally.
+
+Implement ONE of the following (choose the simplest):
+
+Add a Store Grade column (XS / S / M / L / XL / Mega), OR
+
+Group the table by Store Grade with clear section headers
+
+Store Grade must be visible at row or group level, not just a filter.
+
+3️⃣ Editable vs Read-Only (lock this clearly)
+
+Editable fields (only these):
+
+Facings
+
+Presentation (Min Units)
+
+Read-only fields:
+
+SKU ID
+
+Description
+
+Product Group
+
+Channel / Eligibility
+
+Derived / validation values
+
+Do not add any new editable inputs.
+
+4️⃣ Fix validation language (semantic correction)
+
+Rename statuses to match RAP intent:
+
+“Below Minimum” → Presentation Not Met
+
+“Over Capacity” → Shelf Capacity Exceeded
+
+“OK” stays OK
+
+Avoid any wording that implies live inventory or stock levels.
+
+5️⃣ Improve shelf validation visuals (without new components)
+
+Keep the existing “Shelf Usage” concept but:
+
+De-emphasise raw percentages
+
+Use a subtle visual indicator (bar, fill, or icon) as the primary cue
+
+Percent value can remain as secondary text or tooltip
+
+The goal is at-a-glance pressure, not math.
+
+6️⃣ Data realism (important for credibility)
+
+Update mock data so that:
+
+SKU descriptions align with the Product Group
+(e.g. earbuds, headphones, accessories — not mugs or notebooks)
+
+No need for perfect accuracy — just believable retail data.
+
+What NOT to Add
+
+Do NOT add:
+
+Inventory quantities
+
+Weekly views
+
+Allocation logic
+
+Store-level expansion
+
+Charts or cards
+
+SIP concepts
+
+This screen defines physical shelf rules only.
+
+Success Criteria (use this to self-check)
+
+This screen is correct if:
+
+A planner sees one row per SKU
+
+It’s clear which store grade the rules apply to
+
+Facings & Presentation feel like rules, not scenarios
+
+Validation messages describe structural issues, not stock issues
+
+The screen feels like a cleaner version of the Excel, not a simulator
+
+Final sanity check
+
+If a user asks:
+
+“Why does this SKU have 3 facings in M stores?”
+
+They should be able to answer from this screen alone, without clicking elsewhere.
+
+If that’s true, the screen is now aligned.

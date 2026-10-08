@@ -1,0 +1,242 @@
+Enhance the existing Route Master screen based on the latest client feedback while maintaining consistency with the rest of the MerchX application.
+
+1. Add Property
+
+Add Property as both:
+
+A table column
+A filter in the filter toolbar
+
+Populate with realistic mock values such as:
+
+Las Vegas Strip
+Orlando Resort
+Dallas Airport
+Chicago Downtown
+Miami Beach
+
+Property should sit naturally alongside the Store information.
+
+2. Warehouse Number
+
+Currently only the Warehouse Name is displayed.
+
+Add a Warehouse Number column alongside Warehouse Name.
+
+Example:
+
+Warehouse No.	Warehouse
+950	RDC – Las Vegas
+992	RDC – Orlando
+875	RDC – Dallas
+
+Update mock data accordingly.
+
+3. Category & Merchandise Area
+
+Add both fields as:
+
+Table columns
+Filter dropdowns
+
+Example Categories:
+
+Apparel
+Books
+Food
+Gifts
+Travel Essentials
+
+Example Merchandise Areas:
+
+Womens Knitwear
+Mens Casual
+Stationery
+Confectionery
+Souvenirs
+
+These should integrate naturally into the existing table without changing the overall design language.
+
+4. Additional Table Sorting
+
+Ensure the existing table supports sorting on the following columns:
+
+Store Number
+Store Name
+State
+City
+Status
+Lead Time (Weeks)
+
+Mock frontend sorting only is sufficient.
+
+5. Future Planning Fields
+
+The client has requested several additional route attributes that will become important as planning functionality evolves.
+
+These should be added to the UI now using mock data only.
+
+Transportation Mode
+
+Add a new column:
+
+Transportation Mode
+
+Values:
+
+Company Fleet
+LTL
+
+Also include it within the Add/Edit Route drawer.
+
+Temperature Controlled
+
+Add:
+
+Temperature Controlled
+
+Values:
+
+Yes
+No
+
+Represent this using the same badge/chip styling already used elsewhere within MerchX.
+
+Also include it within the Add/Edit Route drawer.
+
+Delivery Day(s)
+
+Add a column:
+
+Delivery Days
+
+Examples:
+
+Mon
+Mon / Wed
+Tue / Thu
+Daily
+
+Also include this field in the Add/Edit drawer using a multi-select or tag selector consistent with the existing design language.
+
+Active / Inactive Route
+
+Currently Store Status already exists.
+
+Add a separate field for:
+
+Route Status
+
+Values:
+
+Active
+Inactive
+
+This should represent whether the route itself is active, independent of the Store Status.
+
+Include this both:
+
+in the table
+within the Add/Edit drawer
+Primary / Secondary Route
+
+Some Merchandise Areas may be serviced by multiple warehouses.
+
+Add a field:
+
+Route Priority
+
+Values:
+
+Primary
+Secondary
+
+Represent this using small badges.
+
+Also include it in the Add/Edit drawer.
+
+6. Current Week Output Demand
+
+Although these values are planning outputs rather than master data, the client has requested visibility.
+
+Add two read-only columns:
+
+Current Week Output Demand (Units)
+Current Week Output Demand ($)
+
+Populate with realistic mock values.
+
+Examples:
+
+Units	Value
+540	$8,250
+120	$2,140
+980	$17,500
+
+These fields should appear toward the right-hand side of the table.
+
+No calculations are required.
+
+7. Update Add/Edit Route Drawer
+
+Extend the existing drawer to include the new fields.
+
+Suggested layout:
+
+Warehouse
+Warehouse Number
+Warehouse
+Warehouse Address
+Store
+Property
+Store Number
+Store Name
+State
+City
+Store Status
+Routing
+Lead Time (Days)
+Lead Time (Weeks)
+Transportation Mode
+Temperature Controlled
+Delivery Days
+Route Status
+Route Priority
+
+Maintain the existing drawer styling and spacing.
+
+8. Responsive Table Behaviour
+
+With the additional columns, optimise the table for usability.
+
+Reuse the existing table component but ensure:
+
+Horizontal scrolling works smoothly.
+Sticky headers remain functional.
+Important identifying columns (Warehouse, Warehouse Number, Store Number and Store Name) remain visible where practical.
+Column widths are balanced so the screen still feels clean and readable.
+9. Mock Data
+
+Update all mock data to reflect the new fields.
+
+Ensure realistic combinations such as:
+
+Different Merchandise Areas by route.
+Different Categories.
+Mixed Transportation Modes.
+Mixture of Primary and Secondary routes.
+Varying Delivery Days.
+Mixed Active and Inactive routes.
+Realistic Output Demand values.
+
+The screen should feel like it represents a real production environment.
+
+Important
+
+This remains a frontend-only enhancement.
+
+Do not implement backend services, calculations or business logic.
+
+Use realistic mock data and simulated frontend interactions only.
+
+The goal is to produce a polished, client-ready Route Master screen that incorporates all requested enhancements while remaining visually consistent with the existing MerchX application.

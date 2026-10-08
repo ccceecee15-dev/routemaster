@@ -1,0 +1,191 @@
+Continue working in the existing MERCHX application.
+
+Do not change any global styling, layout, colours, fonts, spacing, or base UI components.
+The design system is already correct.
+
+This task adds the RAP → Determine Facings & Presentation screen using existing UI patterns only.
+
+Scope
+
+Only implement:
+
+RAP → Determine Facings & Presentation
+
+Do not modify:
+
+Other RAP screens
+
+SIP screens
+
+Sidebar styling
+
+Backend logic or calculations
+
+Other RAP tabs can remain as already implemented.
+
+Purpose of This Screen
+
+This screen defines minimum on-shelf presence rules for styles that are already ranged.
+
+It sets:
+
+Facings
+
+Presentation quantity
+
+By:
+
+Style
+
+Store grade (or cluster)
+
+It does not plan inventory flow or timing.
+
+Screen Layout
+
+Follow existing MERCHX patterns:
+
+Page header
+
+Filter bar
+
+Read-only context
+
+Main table inside a card
+
+No new layouts.
+
+1. Page Header
+
+Title:
+
+Determine Facings & Presentation
+
+Optional subtitle (muted):
+
+“Define minimum on-shelf presence by store grade”
+
+2. Context Filters
+
+Reuse existing filter components.
+
+Filters:
+
+Merchandise Area
+
+Category / Sub-Category
+
+Season
+
+Store Format
+
+Store Grade
+
+Include Apply button.
+
+These filters scope the rules being defined.
+
+3. Read-Only Context (Rules)
+
+Show a small non-editable section stating:
+
+Only styles marked In Range are shown
+
+Store grades are inherited from Grade Store
+
+These rules feed SIP and do not plan quantities
+
+This matches Excel assumptions.
+
+4. Facings & Presentation Table (Core)
+
+Use an existing table component.
+
+Each row represents:
+
+Style × Store Grade
+
+Columns
+Context (read-only)
+
+Style ID
+
+Style Description
+
+Store Grade
+
+Editable Rules
+
+Facings
+
+Presentation Quantity
+
+These are the only editable fields on this screen.
+
+Reference (read-only, if present in Excel)
+
+Fixture Type
+
+Capacity Hint (if available)
+
+These should not block edits.
+
+5. Interaction Rules (Excel-faithful)
+
+Facings and Presentation:
+
+Are static rules
+
+Do not vary by week
+
+Values can be mocked
+
+No validation required
+
+No dependency logic required
+
+Changes apply to all stores of that grade
+
+Overrides at individual store level (if any) are out of scope here.
+
+6. What NOT to Show (Very Important)
+
+Do not show:
+
+Individual stores
+
+Allocation
+
+Replenishment
+
+Forecast
+
+Weeks or dates
+
+DCs
+
+SIP concepts
+
+This screen should feel structural and final.
+
+7. Non-Goals
+
+Do not preview SIP impact
+
+Do not add charts
+
+Do not add approval / publish buttons
+
+Do not add eligibility toggles (already done in Range Style)
+
+Success Criteria
+
+When finished:
+
+It is clear what minimum on-shelf presence each style must have
+
+Rules are consistent by store grade
+
+The screen feels like the last RAP decision before execution
+
+The output is cleanly consumable by SIP

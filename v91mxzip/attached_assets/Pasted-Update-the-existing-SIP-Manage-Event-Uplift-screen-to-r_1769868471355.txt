@@ -1,0 +1,161 @@
+Update the existing SIP → Manage Event Uplift screen to reflect a store- and category-specific seasonality and uplift view.
+Reuse the current layout, components, colours, fonts, and patterns exactly as they are.
+This is a UI-only enhancement using static mock data.
+
+1. Screen intent (anchor)
+
+This screen allows a planner to:
+
+View baseline seasonality by week
+
+For a selected Product Category and Store
+
+Overlay uplift / event rules
+
+Visually see how rules change the demand curve
+
+This screen defines demand shaping rules, not allocation.
+
+2. Entry & empty state
+
+Screen loads in an empty state
+
+Show placeholder message:
+
+“Select a Product Category and Store to view seasonality”
+
+No graph or table is shown until:
+
+Product Category is selected
+
+Store is selected
+
+3. Required selectors (top of screen)
+
+Enable these selectors before populating the screen:
+
+Merchandise Area
+
+Product Category
+
+Store
+
+All three must be selected before data appears.
+
+4. Seasonality / uplift visualization (primary focus)
+
+Once selections are made, display a full-width visual:
+
+Chart behavior
+
+X-axis: Weeks
+
+From 2026 W1 → 2026 W52
+
+Y-axis: Uplift / Index value
+
+Baseline seasonality shown as:
+
+a single continuous line (neutral color)
+
+This represents:
+
+“Normal expected demand shape without any special events”
+
+5. Overlaying uplift rules (core feature)
+
+When uplift rules are added:
+
+Show additional line(s) or markers on the same chart
+
+Each rule should:
+
+use a distinct color
+
+not hide or replace the baseline
+
+The planner should be able to:
+
+visually compare baseline vs uplifted curve
+
+No toggling logic required — visual overlay is enough.
+
+6. Rule management section (below the chart)
+
+Below the chart, add a simple Rules table or panel.
+
+Each rule includes:
+
+Rule Name
+
+Start Week
+
+End Week
+
+Uplift Value (e.g. +10%, +25%)
+
+Notes (optional)
+
+Actions:
+
+Add Rule
+
+Edit Rule
+
+Remove Rule
+
+Changes should:
+
+immediately reflect on the chart visually
+
+not modify baseline seasonality
+
+7. Interaction behavior (keep it light)
+
+No validation logic required
+
+No conflict resolution required
+
+No recalculation of forecasts here
+
+Visual update only (simple mock arithmetic is fine)
+
+This screen illustrates impact, it does not finalize numbers.
+
+8. What this screen must NOT do
+
+❌ Do not allocate inventory
+
+❌ Do not show SKU-level rows
+
+❌ Do not show vendor data
+
+❌ Do not allow editing forecast numbers directly
+
+❌ Do not replace the baseline curve
+
+This is rule definition + visualization only.
+
+9. Mock data guidance
+
+Baseline seasonality can be a smooth curve
+
+Uplift rules can add simple bumps or spikes
+
+Exact math does not need to be correct — relationships must be clear
+
+10. Acceptance checklist
+
+This screen is correct if:
+
+Planner must pick Category + Store first
+
+They see a full-year seasonality curve
+
+Adding a rule clearly adds a visible overlay
+
+Baseline is always visible
+
+The screen answers:
+
+“How will this event change demand shape?”

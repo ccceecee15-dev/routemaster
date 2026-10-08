@@ -1,0 +1,316 @@
+This is a follow-on task for the existing Route Master screen within the MerchX application.
+
+Do not redesign or restructure the existing screen. Continue building upon the current implementation and preserve the existing layout, styling, table components, filters, drawer and overall UX.
+
+As with previous iterations, this remains a frontend/UI enhancement only using realistic mock data. Backend functionality and business logic are not required.
+
+Objective
+
+Enhance the Route Master screen based on the latest client review.
+
+The primary objective is to allow Route Master maintenance at a more granular level by introducing Category and Merchandise Area while also preparing the screen for future routing and delivery planning attributes.
+
+1. Add Category
+
+Add Category as:
+
+A new filter in the filter toolbar
+A new column within the Route Master table
+A field within the Add/Edit Route drawer
+
+Populate with realistic mock values such as:
+
+Apparel
+Books
+Gifts
+Food
+Travel Essentials
+Stationery
+
+This should become one of the primary maintenance dimensions for Route Master.
+
+2. Add Merchandise Area
+
+Add Merchandise Area as:
+
+A filter
+A table column
+A field in the Add/Edit Route drawer
+
+Populate using realistic mock values such as:
+
+Womens Knitwear
+Mens Casual
+Souvenirs
+Confectionery
+Childrens
+Accessories
+
+This field should visually sit alongside Category since these are closely related.
+
+3. Reflect the Routing Hierarchy
+
+The client explained that lead times are not always maintained at a simple Warehouse → Store level.
+
+The UI should visually support routing at progressively more granular levels.
+
+Within the Add/Edit drawer organise the routing section as:
+
+Routing Classification
+
+Category
+
+Merchandise Area
+
+(Optional placeholder)
+
+Vendor
+
+(Optional placeholder)
+
+Style / Material Override
+
+The Vendor and Style fields can simply be displayed as disabled or marked as "Future Enhancement".
+
+No functionality is required.
+
+This simply communicates the intended hierarchy.
+
+4. Future Exception Framework
+
+The client explained that:
+
+Most lead times will eventually be maintained at Category level.
+Merchandise Areas may override Category.
+Vendors may override Merchandise Area.
+Individual Styles/Materials may override Vendor.
+
+Do not build this functionality.
+
+Instead, add a small informational section within the drawer:
+
+Lead Time Hierarchy
+
+Category
+
+↓
+
+Merchandise Area
+
+↓
+
+Vendor (Future)
+
+↓
+
+Style / Material Override (Future)
+
+This is purely visual and intended to communicate how Route Master will evolve.
+
+5. Transportation Mode
+
+Add a new field.
+
+Transportation Mode
+
+Values:
+
+Company Fleet
+LTL
+
+Include:
+
+Table column
+Drawer field
+
+Populate using mock data.
+
+6. Temperature Controlled
+
+Add:
+
+Temperature Controlled
+
+Values:
+
+Yes
+No
+
+Display using the existing badge/chip styling already used throughout MerchX.
+
+Include:
+
+Table column
+Drawer field
+7. Delivery Days
+
+The client discussed future delivery calendars.
+
+For now simply introduce:
+
+Delivery Days
+
+Use realistic mock examples such as:
+
+Monday
+Monday / Wednesday
+Tuesday / Thursday
+Daily
+
+Display:
+
+Table column
+Drawer field
+
+Use a tag selector or multiselect consistent with existing components.
+
+No scheduling functionality is required.
+
+8. Route Status
+
+Separate Route Status from Store Status.
+
+Introduce:
+
+Route Status
+
+Values:
+
+Active
+Inactive
+
+Include:
+
+Table column
+Drawer field
+
+Continue using Store Status independently.
+
+9. Route Priority
+
+Some Merchandise Areas may eventually be serviced by multiple warehouses.
+
+Introduce:
+
+Route Priority
+
+Values:
+
+Primary
+Secondary
+
+Display as coloured badges.
+
+Include:
+
+Table column
+Drawer field
+
+No routing logic is required.
+
+10. Current Week Output Demand
+
+The client requested visibility of planning information alongside routing.
+
+Add two read-only columns:
+
+Current Week Output Demand (Units)
+
+Current Week Output Demand ($)
+
+Populate with realistic mock values only.
+
+Examples:
+
+540
+
+$8,250
+
+120
+
+$2,140
+
+980
+
+$17,500
+
+These values should appear toward the right-hand side of the table.
+
+No calculations are required.
+
+11. Sorting
+
+Enable frontend sorting for the following columns:
+
+Store Number
+Store Name
+State
+City
+Status
+Lead Time (Weeks)
+Category
+Merchandise Area
+
+Mock sorting behaviour is sufficient.
+
+12. Drawer Organisation
+
+Reorganise the Add/Edit Route drawer into clearer sections.
+
+Warehouse
+
+Warehouse Number
+
+Warehouse
+
+Warehouse Address
+
+Store
+
+Property
+
+Store Number
+
+Store Name
+
+State
+
+City
+
+Store Status
+
+Routing
+
+Category
+
+Merchandise Area
+
+Lead Time (Weeks)
+
+Transportation Mode
+
+Temperature Controlled
+
+Delivery Days
+
+Route Status
+
+Route Priority
+
+Future Hierarchy
+
+Vendor (Future)
+
+Style / Material Override (Future)
+
+Display these as disabled placeholder fields with a subtle "Future Enhancement" label.
+
+Important
+
+Continue prioritising UI quality over implementation.
+
+Use realistic mock data throughout.
+
+Do not implement backend logic, routing calculations or hierarchy processing.
+
+The objective is to demonstrate how Route Master will evolve into the central maintenance screen for warehouse routing, lead time management and future exception handling while remaining fully consistent with the existing MerchX application.

@@ -1,0 +1,131 @@
+Continue working in the existing RAP → Determine Facings & Presentation screen.
+Reuse the current layout, components, and patterns exactly as they are.
+This is an incremental UI update only, using static mock data where needed.
+
+1. Overall intent (no change in scope)
+
+This screen should work in a store-first way:
+
+Start from a list of stores
+
+Select a store
+
+Then define facings and depth for styles in that store
+
+No backend logic or refactoring is required.
+
+2. Entry behavior
+
+Keep the screen empty until:
+
+a Merchandise Area is selected
+
+store filters are applied
+
+Show a simple placeholder message until then:
+
+“Select a Merchandise Area and Store to begin”
+
+3. Store list view (top level)
+
+Use an existing table pattern to show a list of stores.
+
+Each row represents one store and shows:
+
+Store ID
+
+Store Name
+
+Format
+
+Channel
+
+Region / Property / Terminal
+
+Fixture summary (read-only text)
+
+Facings capacity (mock value)
+
+Presentation capacity (mock value)
+
+A simple status label
+
+An action to View Store
+
+No editing happens in this view.
+
+4. Store detail view (same screen style)
+
+When a store is selected, show a store detail view using existing components.
+
+At the top, display a small card with:
+
+Store name and identifiers
+
+Fixture types
+
+Facings used vs total
+
+Presentation used vs total
+
+Values can be mocked and visually updated only.
+
+5. Styles table for the selected store
+
+Below the store card, show a table of eligible styles for that store.
+
+Each row represents one style and shows:
+
+Style ID
+
+Style Description
+
+Planning Group / Sub Planning Group
+
+Style Grade
+
+Facings (editable)
+
+Depth (editable)
+
+Presentation (read-only, shown as Facings × Depth)
+
+Status indicator (text only)
+
+6. Interaction behavior (lightweight)
+
+Editing Facings or Depth:
+
+Updates the Presentation value in that row
+
+Updates the totals shown in the store summary card
+
+No blocking or error handling is required
+
+Visual updates only; simple arithmetic is enough
+
+7. Keep scope intentionally small
+
+Do not add:
+
+Inventory logic
+
+Allocation logic
+
+Forecasting
+
+Fixture editing
+
+Store comparisons
+
+This screen is only about visual shelf setup per store.
+
+8. Mock data guidance
+
+Fixture capacities can be static numbers
+
+Eligible styles can be a short static list
+
+Totals only need to “look right” visually
+
+No persistence or complex calculations are needed.

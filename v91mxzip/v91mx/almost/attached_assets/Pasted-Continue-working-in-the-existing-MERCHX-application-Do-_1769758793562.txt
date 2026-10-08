@@ -1,0 +1,168 @@
+Continue working in the existing MERCHX application.
+
+Do not change any global styling, layout, colours, fonts, spacing, or base UI components.
+The design system is already correct.
+
+This task adds the SIP → Generate Forecast screen using existing UI patterns only.
+
+Scope
+
+Only implement:
+
+SIP → Generate Forecast
+
+Do not modify:
+
+Manage Event Uplift
+
+Allocation View
+
+Vendor View
+
+RAP screens
+
+Sidebar styling
+
+Backend logic or calculations
+
+Other SIP tabs can remain placeholders if present.
+
+Purpose
+
+This screen configures and triggers forecast generation using:
+
+baseline demand
+
+seasonality
+
+event uplift rules
+
+It does not allow forecast editing.
+
+Screen Layout
+
+Follow existing MERCHX patterns:
+
+Page header
+
+Configuration section inside cards
+
+Action button
+
+Output summary panel
+
+No new layouts.
+
+1. Page Header
+
+Title:
+
+Generate Forecast
+
+Optional subtitle (muted):
+
+“Configure and generate demand forecast”
+
+2. Forecast Configuration Section
+
+Show configuration fields using existing form components.
+
+Fields
+
+Merchandise Area
+
+Category / Sub-Category
+
+Season
+
+Forecast Start Week / Date
+
+Forecast End Week / Date
+
+Read-Only Context (Displayed, Not Editable)
+
+Baseline demand source
+
+Seasonality profile
+
+Number of active event uplift rules applied
+
+This reassures the user before running.
+
+3. Generate Action
+
+Primary button:
+
+Generate Forecast
+
+On click:
+
+Show loading state
+
+Disable button temporarily
+
+No job queue UI needed.
+
+4. Forecast Output Summary
+
+After generation, show a simple summary section.
+
+Examples:
+
+Total forecast units
+
+Average weekly demand
+
+Number of SKUs forecasted
+
+Forecast horizon (weeks)
+
+Optionally include:
+
+A compact SKU-level summary table (no weekly breakdown)
+
+5. Interaction Rules
+
+Configuration fields are editable
+
+Summary is read-only
+
+No validation beyond required fields
+
+Data can be mocked but should look realistic
+
+6. What NOT to Show
+
+Do not show:
+
+Weekly or daily forecast grids
+
+Store-level data
+
+Allocation or replenishment controls
+
+Vendor views
+
+Success Criteria
+
+When finished:
+
+It’s clear how a forecast is generated
+
+Users trust what inputs were applied
+
+The screen naturally leads into Allocation View
+
+It matches how the Excel “run forecast” step works
+
+Sanity check
+
+If a user asks:
+
+“Where do I change the forecast numbers?”
+
+The correct answer should be:
+
+“You don’t — this screen generates them.”
+
+If that answer works, the screen is correct.

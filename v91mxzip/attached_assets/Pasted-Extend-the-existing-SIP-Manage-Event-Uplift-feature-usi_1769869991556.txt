@@ -1,0 +1,172 @@
+Extend the existing SIP → Manage Event Uplift feature using the same layout and UI patterns already in place.
+This is an incremental UI update only, using static mock data where needed.
+No global redesign or backend logic changes are required.
+
+1. Overall structure (high level)
+
+Manage Event Uplift should work as two simple views:
+
+Store selection view
+
+Store uplift detail view
+
+Use existing table, filter, card, and chart components.
+
+2. Screen A — Store selection view
+Purpose
+
+Let the user pick one store to manage uplift for.
+
+Filters (top of screen)
+
+Use existing filter components to filter the store list:
+
+Format
+
+Channel
+
+Region
+
+Property
+
+Terminal
+
+Filters narrow the list only.
+
+Store list table
+
+Each row represents one store.
+
+Show a simple table with:
+
+Store ID
+
+Store Name
+
+Format
+
+Channel
+
+Region / Property / Terminal
+
+Action: View Uplift
+
+No editing happens on this screen.
+
+Interaction
+
+Clicking View Uplift opens the Store uplift detail view
+
+Keep the transition simple and consistent with other drill-downs
+
+3. Screen B — Store uplift detail view
+
+This screen is the existing uplift graph screen, with adjusted context.
+
+A. Store context card (top)
+
+Add a compact card at the top showing:
+
+Store Name / ID
+
+Format
+
+Channel
+
+Region / Property / Terminal
+
+This card is read-only and provides context only.
+
+B. Product filters (only product filters here)
+
+Below the store card, show product-level filters:
+
+Merchandise Area
+
+Product Category
+
+Sub-Category
+
+Planning Group
+
+All must be selected before showing the uplift graph.
+
+C. Uplift graph (main content)
+
+Reuse the existing uplift index chart:
+
+X-axis: Weeks (2026 W1 → W52)
+
+Y-axis: Uplift Index
+
+Show:
+
+Baseline line at 1.0
+
+System-generated uplift by week
+
+User event overlays
+
+Baseline and system uplift are read-only.
+
+D. Event rule section (below the chart)
+
+Reuse the existing rule panel to:
+
+Add events
+
+Edit events
+
+Remove events
+
+Each event visually alters the uplift curve for selected weeks.
+
+4. Interaction behavior (keep lightweight)
+
+No calculations need to be exact
+
+Visual updates only
+
+No validation or blocking required
+
+No weekly grid editing
+
+5. Empty state behavior
+
+Store selection view always shows the store list
+
+Store uplift detail view shows a placeholder until:
+
+Product filters are selected
+
+Example placeholder:
+
+“Select a product hierarchy to view uplift”
+
+6. What NOT to add
+
+Do not add:
+
+Forecast values
+
+Allocation logic
+
+SKU-level tables
+
+Vendor information
+
+Inventory numbers
+
+This feature is uplift definition only.
+
+7. Success check
+
+This is correct if:
+
+User first chooses a store
+
+Then chooses product hierarchy
+
+Then sees an uplift index graph
+
+Events visually modify uplift without hiding baseline
