@@ -17,6 +17,7 @@ import NotFound from "@/pages/not-found";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 import RouteMaster from "@/pages/master/RouteMaster";
 import RouteMasterV2 from "@/pages/master/RouteMasterV2";
+import SpacePlanning from "@/pages/SpacePlanning";
 
 function Router() {
   return (
@@ -36,6 +37,11 @@ function Router() {
       <Route path="/rap/range-style" component={RangeStyle} />
       <Route path="/rap/facings-presentation" component={DetermineFacingsPresentation} />
       <Route path="/rap/rules">{() => <PlaceholderPage title="RAP Rules" />}</Route>
+
+      <Route path="/space-planning">
+        <Redirect to="/space-planning/blocks" />
+      </Route>
+      <Route path="/space-planning/:screen" component={SpacePlanning} />
 
       <Route path="/master/route-master">{() => <RouteMaster />}</Route>
       <Route path="/route-master-v2" component={RouteMasterV2} />

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronDown, Layers, Target, Database } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Layers, Target, Database, Ruler } from "lucide-react";
 import { useState } from "react";
 
 interface NavItem {
@@ -53,6 +53,18 @@ const navGroups: NavGroup[] = [
           { label: "Determine Facings & Presentation", href: "/rap/facings-presentation" },
           { label: "RAP Rules", href: "/rap/rules" }
         ]
+      },
+      {
+        icon: Ruler,
+        label: "Space Planning",
+        subItems: [
+          { label: "Merchandising Blocks", href: "/space-planning/blocks" },
+          { label: "Fixture Master", href: "/space-planning/fixtures" },
+          { label: "Block Compatibility & Capacity", href: "/space-planning/compatibility" },
+          { label: "Store Grading", href: "/space-planning/grading" },
+          { label: "Space Revision", href: "/space-planning/revision" },
+          { label: "Facings & Presentations", href: "/space-planning/facings" },
+        ],
       }
     ]
   }
@@ -61,7 +73,7 @@ const navGroups: NavGroup[] = [
 export function Sidebar() {
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["SIP", "RAP"]));
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["SIP", "RAP", "Space Planning"]));
 
   const toggleExpanded = (label: string) => {
     const newExpanded = new Set(expandedItems);

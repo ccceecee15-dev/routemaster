@@ -17,6 +17,7 @@ export function Header() {
   const [location] = useLocation();
 
   const getTitleFromRoute = (path: string) => {
+    if (path.startsWith("/space-planning")) return "Space Planning";
     if (path === "/") return "Dashboard";
     if (path === "/otb") return "OTB Planning";
     if (path === "/commercial-planning") return "Commercial Planning";
