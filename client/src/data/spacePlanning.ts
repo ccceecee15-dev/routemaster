@@ -84,6 +84,7 @@ export interface FacingAssignment {
   fixtureCode: string;
   skuId: string;
   facings: number;
+  shelfIndex?: number;
 }
 
 type MerchAreaSeed = Pick<MerchArea, "id" | "name" | "department">;
@@ -338,26 +339,26 @@ export const fixtureBlockAllocations: FixtureBlockAllocation[] = [
 ];
 
 const storeRoster = [
-  ["0876", "Seattle Airport Concourse B (illustrative)", "Airport", "Washington", "Pacific", "Seattle–Tacoma International Airport", "Travel Retail"],
-  ["1489", "Chicago O'Hare Terminal 3 (illustrative)", "Airport", "Illinois", "Midwest", "O'Hare International Airport", "Travel Retail"],
-  ["1024", "New York Midtown Transit (illustrative)", "Transit", "New York", "Northeast", "Midtown Manhattan", "Transit"],
-  ["0542", "Dallas Central Market (illustrative)", "Flagship", "Texas", "South", "Downtown Dallas", "High Street"],
-  ["0931", "Los Angeles Union Terminal (illustrative)", "Transit", "California", "West", "Union Station", "Transit"],
-  ["0219", "Denver Airport Concourse A (illustrative)", "Airport", "Colorado", "Mountain", "Denver International Airport", "Travel Retail"],
-  ["1105", "Atlanta Downtown Exchange (illustrative)", "Transit", "Georgia", "Southeast", "Downtown Atlanta", "Transit"],
-  ["0348", "San Francisco Market Street (illustrative)", "Flagship", "California", "West", "Market Street", "High Street"],
-  ["0762", "Boston Harbor Transit (illustrative)", "Transit", "Massachusetts", "Northeast", "Boston Harbor", "Transit"],
-  ["1502", "Miami International Concourse D (illustrative)", "Airport", "Florida", "Southeast", "Miami International Airport", "Travel Retail"],
-  ["0112", "Portland Commuter Center (illustrative)", "Community", "Oregon", "Pacific", "Downtown Portland", "Community"],
-  ["0645", "Phoenix Sky Harbor Terminal 4 (illustrative)", "Airport", "Arizona", "Southwest", "Phoenix Sky Harbor International Airport", "Travel Retail"],
-  ["0821", "Minneapolis North Loop (illustrative)", "Community", "Minnesota", "Midwest", "North Loop", "Community"],
-  ["0493", "Nashville Central Station (illustrative)", "Transit", "Tennessee", "South", "Downtown Nashville", "Transit"],
-  ["0714", "Washington Union Concourse (illustrative)", "Transit", "District of Columbia", "Northeast", "Union Station", "Transit"],
-  ["0916", "Charlotte Airport Atrium (illustrative)", "Airport", "North Carolina", "Southeast", "Charlotte Douglas International Airport", "Travel Retail"],
-  ["0326", "Seattle Downtown Market (illustrative)", "Flagship", "Washington", "Pacific", "Downtown Seattle", "High Street"],
-  ["0519", "Austin Convention District (illustrative)", "Community", "Texas", "South", "Convention District", "Community"],
-  ["0148", "San Diego Airport Terminal 2 (illustrative)", "Airport", "California", "West", "San Diego International Airport", "Travel Retail"],
-  ["1234", "Newark Airport Terminal A (illustrative)", "Airport", "New Jersey", "Northeast", "Newark Liberty International Airport", "Travel Retail"],
+  ["0876", "Seattle Airport Concourse B", "Destination", "Washington", "Pacific", "Seattle–Tacoma International Airport", "Travel Retail"],
+  ["1489", "Chicago O'Hare Terminal 3", "Destination", "Illinois", "Midwest", "O'Hare International Airport", "Travel Retail"],
+  ["1024", "New York Midtown Transit", "Transit", "New York", "Northeast", "Midtown Manhattan", "Transit"],
+  ["0542", "Dallas Central Market", "Flagship", "Texas", "South", "Downtown Dallas", "High Street"],
+  ["0931", "Los Angeles Union Terminal", "Transit", "California", "West", "Union Station", "Transit"],
+  ["0219", "Denver Airport Concourse A", "Destination", "Colorado", "Mountain", "Denver International Airport", "Travel Retail"],
+  ["1105", "Atlanta Downtown Exchange", "Transit", "Georgia", "Southeast", "Downtown Atlanta", "Transit"],
+  ["0348", "San Francisco Market Street", "Flagship", "California", "West", "Market Street", "High Street"],
+  ["0762", "Boston Harbor Transit", "Transit", "Massachusetts", "Northeast", "Boston Harbor", "Transit"],
+  ["1502", "Miami International Concourse D", "Destination", "Florida", "Southeast", "Miami International Airport", "Travel Retail"],
+  ["0112", "Portland Commuter Center", "Community", "Oregon", "Pacific", "Downtown Portland", "Community"],
+  ["0645", "Phoenix Sky Harbor Terminal 4", "Destination", "Arizona", "Southwest", "Phoenix Sky Harbor International Airport", "Travel Retail"],
+  ["0821", "Minneapolis North Loop", "Community", "Minnesota", "Midwest", "North Loop", "Community"],
+  ["0493", "Nashville Central Station", "Transit", "Tennessee", "South", "Downtown Nashville", "Transit"],
+  ["0714", "Washington Union Concourse", "Transit", "District of Columbia", "Northeast", "Union Station", "Transit"],
+  ["0916", "Charlotte Airport Atrium", "Destination", "North Carolina", "Southeast", "Charlotte Douglas International Airport", "Travel Retail"],
+  ["0326", "Seattle Downtown Market", "Flagship", "Washington", "Pacific", "Downtown Seattle", "High Street"],
+  ["0519", "Austin Convention District", "Community", "Texas", "South", "Convention District", "Community"],
+  ["0148", "San Diego Airport Terminal 2", "Destination", "California", "West", "San Diego International Airport", "Travel Retail"],
+  ["1234", "Newark Airport Terminal A", "Destination", "New Jersey", "Northeast", "Newark Liberty International Airport", "Travel Retail"],
 ].map(([id, name, format, state, region, property, channel]) => ({
   id,
   name,

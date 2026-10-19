@@ -1,13 +1,19 @@
 import { Fragment, useMemo, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import {
   ArrowRight,
   Check,
   ChevronDown,
   ChevronRight,
   CircleAlert,
+  BookOpen,
+  Droplets,
+  Headphones,
+  Package,
+  PlugZap,
   Plus,
   Search,
+  Smartphone,
   SlidersHorizontal,
   Trash2,
   X,
@@ -51,6 +57,7 @@ import {
   type FixtureCompatibility,
   type FixtureType,
   type PlanningBlock,
+  type PlanningSku,
   type PlanningStore,
   type StoreInventory,
 } from "@/data/spacePlanning";
@@ -167,7 +174,6 @@ function Metric({ label, value, detail, compact = false }: { label: string; valu
 }
 
 function ModuleShell({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
   return (
     <MainLayout>
       <div className="space-y-4 pb-4">
@@ -176,10 +182,6 @@ function ModuleShell({ children }: { children: React.ReactNode }) {
           <span className="text-slate-300">/</span>
           <span className="font-semibold text-slate-800">Space Planning</span>
         </div>
-        <nav aria-label="Space Planning screens" className="flex flex-wrap gap-1 border-b border-slate-200">
-          {screens.map(screen => <Link key={screen.path} href={screen.path} className={`border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${location === screen.path ? "border-primary text-primary" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"}`}>{screen.label}</Link>)}
-        </nav>
-        <p className="text-[10px] text-slate-500">Illustrative US retail planning data. Store names, locations, fixture configurations, and product assortments are examples, not verified WHSmith sites or assortments.</p>
         {children}
       </div>
     </MainLayout>
@@ -270,16 +272,6 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
   };
   const assignedEft = (rows: StoreInventory[]) => rows.reduce((total, row) =>
     total + row.quantity * (fixtureList.find(fixture => fixture.code === row.fixtureCode)?.eft ?? 0), 0);
-  const blockEftAllocations = (code: string, quantity: number) => blocks.flatMap(block => {
-    if (!compatibility.some(rule => rule.fixtureCode === code && rule.blockId === block.id)) return [];
-    const fixture = fixtureList.find(item => item.code === code);
-    if (!fixture) return [];
-    const perFixtureEft = fixture.eft * getBlockShare(code, block.id);
-    const capacity = compatibility
-      .filter(rule => rule.fixtureCode === code && rule.blockId === block.id)
-      .reduce((total, rule) => total + rule.slots, 0);
-    return [{ block, perFixtureEft, totalEft: perFixtureEft * quantity, capacity }];
-  }).filter(allocation => !selectedBlockId || allocation.block.id === selectedBlockId);
 
   const resetFilters = () => {
     setRegion("");
@@ -347,7 +339,7 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
           </label>
           <Button variant="outline" size="sm" onClick={resetFilters} className="h-9 gap-1.5 text-xs"><X className="h-3.5 w-3.5" /> Clear filters</Button>
         </div>
-        <Panel title="Stores" description={`${visibleStores.length} of ${stores.length} illustrative US stores`}>
+        <Panel title="Stores" description={`${visibleStores.length} of ${stores.length} stores`}>
           <Table className="text-xs">
             <TableHeader><TableRow>
               <TableHead className="h-9 px-3 text-[10px] tracking-wide">Store number</TableHead>
@@ -394,7 +386,7 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
         <Button size="sm" onClick={() => { setEditingAssignmentId(null); setQuantity("1"); setAddOpen(true); }} className="h-9 gap-1.5 bg-primary text-xs hover:bg-primary/90"><Plus className="h-4 w-4" /> Add Fixture</Button>
       </div>
 
-      <Panel title="Fixture assignments" description={`${visibleAssignments.reduce((total, row) => total + row.quantity, 0)} fixture instances · block EFT uses configured allocation shares and compatibility capacity`} right={<SelectField label="MERCHANDISING BLOCK" value={selectedBlockId} onChange={setSelectedBlockId} options={[{ value: "", label: "All merchandising blocks" }, ...blocks.map(block => ({ value: block.id, label: block.name }))]} className="w-52" />}>
+      <Panel title="Fixture assignments" description={`${visibleAssignments.reduce((total, row) => total + row.quantity, 0)} fixture instances · ${selectedBlockId ? "EFT reflects allocation to the selected block" : "EFT reflects total physical fixture area"}`} right={<SelectField label="MERCHANDISING BLOCK" value={selectedBlockId} onChange={setSelectedBlockId} options={[{ value: "", label: "All merchandising blocks" }, ...blocks.map(block => ({ value: block.id, label: block.name }))]} className="w-52" />}>
         <Table className="text-xs">
           <TableHeader><TableRow>
             <TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture type</TableHead>
@@ -402,8 +394,7 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
             <TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture code</TableHead>
             <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Quantity</TableHead>
             <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Physical EFT / fixture</TableHead>
-            <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Total physical EFT</TableHead>
-            <TableHead className="h-9 px-3 text-[10px] tracking-wide">EFT by merchandising block</TableHead>
+            <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">{selectedBlockId ? `EFT · ${blocks.find(block => block.id === selectedBlockId)?.name ?? "selected block"}` : "Total physical EFT"}</TableHead>
             <TableHead className="h-9 px-3 text-[10px] tracking-wide">Status</TableHead>
             <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Actions</TableHead>
           </TableRow></TableHeader>
@@ -411,7 +402,7 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
             {visibleAssignments.map(row => {
               const fixture = fixtureList.find(item => item.code === row.fixtureCode);
               if (!fixture) return null;
-              const allocations = blockEftAllocations(row.fixtureCode, row.quantity);
+              const totalEft = fixture.eft * row.quantity * (selectedBlockId ? getBlockShare(row.fixtureCode, selectedBlockId) : 1);
               return <TableRow key={row.id}>
                 <TableCell className="px-3 py-2 text-slate-700">{fixture.type}</TableCell>
                 <TableCell className="px-3 py-2 font-medium text-slate-800">{fixture.subtype || fixture.name}</TableCell>
@@ -421,13 +412,12 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
                   setInventory(previous => previous.map(item => item.id === row.id ? { ...item, quantity: nextQuantity, change: item.change === "Existing" ? "Added" : item.change } : item));
                 }} className="ml-auto h-7 w-16 text-center text-xs" aria-label={`Quantity of ${fixture.name} at Store ${selectedStore.id}`} /></TableCell>
                 <TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft.toFixed(1)} EFT</TableCell>
-                <TableCell className="px-3 py-2 text-right tabular-nums font-medium text-slate-800">{(fixture.eft * row.quantity).toFixed(1)} EFT</TableCell>
-                <TableCell className="px-3 py-2 text-[10px] text-slate-600">{allocations.length ? <div className="space-y-0.5">{allocations.map(allocation => <div key={allocation.block.id}><span className="font-medium text-slate-700">{allocation.block.name}</span>: {allocation.perFixtureEft.toFixed(1)} / {allocation.totalEft.toFixed(1)} EFT <span className="text-slate-400">· {allocation.capacity} slots</span></div>)}</div> : <span className="text-slate-400">No block allocation</span>}</TableCell>
+                <TableCell className="px-3 py-2 text-right tabular-nums font-medium text-slate-800">{totalEft.toFixed(1)} EFT</TableCell>
                 <TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell>
                 <TableCell className="px-3 py-2 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => openEditAssignment(row)} className="h-7 gap-1 px-2 text-[10px] text-primary hover:text-primary">Edit</Button><Button variant="ghost" size="sm" onClick={() => setRemoveId(row.id)} className="h-7 gap-1 px-2 text-[10px] text-slate-500 hover:text-slate-700"><Trash2 className="h-3.5 w-3.5" /> Remove</Button></div></TableCell>
               </TableRow>;
             })}
-            {!visibleAssignments.length && <TableRow><TableCell colSpan={9} className="h-16 text-center text-xs text-slate-500">{selectedBlockId ? "No fixture assignments for this store are compatible with the selected block." : "No fixture assignments for this store. Use Add Fixture to assign a catalogue definition."}</TableCell></TableRow>}
+            {!visibleAssignments.length && <TableRow><TableCell colSpan={8} className="h-16 text-center text-xs text-slate-500">{selectedBlockId ? "No fixture assignments for this store are compatible with the selected block." : "No fixture assignments for this store. Use Add Fixture to assign a catalogue definition."}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Panel>
@@ -715,7 +705,7 @@ function BlockCompatibility({ blocks, fixtureList, compatibility, setCompatibili
 
   return (
     <div className="space-y-4">
-      <ScreenHeader title="Block Compatibility & Capacity" description="Review fixture relationships by merchandising block or fixture. Facing slots are illustrative mock values; EFT is physical space." />
+      <ScreenHeader title="Block Compatibility & Capacity" description="Review fixture relationships by merchandising block or fixture. Facing slots are sample values; EFT is physical space." />
       <div role="group" aria-label="Relationship view" className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
         <button type="button" aria-pressed={view === "block"} onClick={() => { setView("block"); setFixtureTypeFilter(""); setStatusFilter("All"); setQuery(""); setFixtureSearch(""); setBlockSearch(""); }} className={`rounded px-3 py-1.5 text-[11px] font-medium ${view === "block" ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>By Merchandising Block</button>
         <button type="button" aria-pressed={view === "fixture"} onClick={() => { setView("fixture"); setFixtureTypeFilter(""); setStatusFilter("All"); setQuery(""); setFixtureSearch(""); setBlockSearch(""); setFixtureCode(compatibilityFixtures[0]?.code ?? ""); }} className={`rounded px-3 py-1.5 text-[11px] font-medium ${view === "fixture" ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>By Fixture</button>
@@ -755,7 +745,7 @@ function BlockCompatibility({ blocks, fixtureList, compatibility, setCompatibili
           {!matchingBlocks.length && <TableRow><TableCell colSpan={6} className="h-16 text-center text-xs text-slate-500">No blocks match these filters.</TableCell></TableRow>}
         </TableBody></Table>
       </Panel>}
-      <p className="text-[10px] text-slate-500">Facing Slots are illustrative numeric mock values for compatible fixture–block pairs. Physical EFT is a separate space measure; no conversion is implied.</p>
+      <p className="text-[10px] text-slate-500">Facing Slots are sample values for compatible fixture–block pairs. Physical EFT is a separate space measure; no conversion is implied.</p>
     </div>
   );
 }
@@ -926,7 +916,7 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
             <div role="group" aria-label="Catalogue view" className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
               {(["hierarchy", "list"] as const).map(option => <button key={option} type="button" aria-pressed={catalogView === option} onClick={() => setCatalogView(option)} className={`rounded px-3 py-1.5 text-[11px] font-medium ${catalogView === option ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>{option === "hierarchy" ? "Hierarchy View" : "List View"}</button>)}
             </div>
-            <span className="text-[10px] text-slate-500">Illustrative fixture data · EFT is physical space, not currency.</span>
+            <span className="text-[10px] text-slate-500">Fixture data · EFT is physical space, not currency.</span>
           </div>
           <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-3">
             <label className="min-w-56 flex-1"><span className="mb-1 block text-[10px] font-semibold text-slate-500">SEARCH CATALOG</span><span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Fixture type, subtype or code" className="h-8 pl-8 text-xs" /></span></label>
@@ -1224,78 +1214,211 @@ function StoreGrading({ blocks, stores, setStores, inventory, compatibility, fix
 
 function SpaceRevision({ blocks, blockId, setBlockId }: { blocks: PlanningBlock[]; blockId: string; setBlockId: (id: string) => void }) {
   const { toast } = useToast();
-  const [grade, setGrade] = useState("M");
+  const formats = Array.from(new Set(initialStores.map(store => store.format))).sort();
+  const [storeFormat, setStoreFormat] = useState(formats[0] ?? "");
+  const [grade, setGrade] = useState("XS");
   const [draft, setDraft] = useState<Record<string, number[]>>({});
   const [saved, setSaved] = useState<Record<string, number[]>>({});
   const block = blocks.find(item => item.id === blockId) ?? blocks[0];
   const areas = block?.areaIds ?? [];
-  const defaultAllocations = areas.map((_, index) => blockId === "beverage" ? [40, 60, 0, 0, 0][index] ?? 0 : Math.floor(100 / Math.max(1, areas.length)));
-  const values = draft[blockId] ?? defaultAllocations;
-  const baseline = saved[blockId] ?? defaultAllocations;
-  const slotsByGrade: Record<string, number> = { XS: 40, S: 56, M: 80, L: 104, XL: 128, Mega: 160 };
-  const capacity = slotsByGrade[grade] ?? 80;
+  const formatGradingStructures: Record<string, { grade: string; minimumSlots: number; capacity: number }[]> = {
+    Destination: [
+      { grade: "XS", minimumSlots: 24, capacity: 40 },
+      { grade: "S", minimumSlots: 36, capacity: 56 },
+      { grade: "M", minimumSlots: 52, capacity: 80 },
+      { grade: "L", minimumSlots: 68, capacity: 104 },
+      { grade: "XL", minimumSlots: 84, capacity: 128 },
+      { grade: "Mega", minimumSlots: 100, capacity: 160 },
+    ],
+    Community: [
+      { grade: "XS", minimumSlots: 18, capacity: 28 },
+      { grade: "S", minimumSlots: 26, capacity: 40 },
+      { grade: "M", minimumSlots: 36, capacity: 56 },
+      { grade: "L", minimumSlots: 48, capacity: 72 },
+    ],
+    Flagship: [
+      { grade: "S", minimumSlots: 40, capacity: 64 },
+      { grade: "M", minimumSlots: 56, capacity: 88 },
+      { grade: "L", minimumSlots: 72, capacity: 112 },
+      { grade: "XL", minimumSlots: 88, capacity: 136 },
+      { grade: "Mega", minimumSlots: 104, capacity: 168 },
+    ],
+    Transit: [
+      { grade: "XS", minimumSlots: 20, capacity: 32 },
+      { grade: "S", minimumSlots: 30, capacity: 48 },
+      { grade: "M", minimumSlots: 44, capacity: 68 },
+      { grade: "L", minimumSlots: 58, capacity: 88 },
+      { grade: "XL", minimumSlots: 72, capacity: 108 },
+    ],
+  };
+  const availableGrades = formatGradingStructures[storeFormat] ?? formatGradingStructures.Destination;
+  const activeGrade = availableGrades.some(item => item.grade === grade) ? grade : availableGrades[0]?.grade ?? gradeNames[0];
+  const gradeConfig = availableGrades.find(item => item.grade === activeGrade) ?? { grade: activeGrade, minimumSlots: 0, capacity: 40 };
+  const allocationKey = `${block?.id ?? blockId}:${storeFormat}:${activeGrade}`;
+  const defaultAllocations = areas.map((_, index) => block?.id === "beverage"
+    ? [40, 60, 0, 0, 0][index] ?? 0
+    : Math.floor(100 / Math.max(1, areas.length)) + (index < 100 % Math.max(1, areas.length) ? 1 : 0));
+  const baseline = saved[allocationKey] ?? defaultAllocations;
+  const values = draft[allocationKey] ?? baseline;
   const totalPercent = values.reduce((sum, value) => sum + value, 0);
-  const allocatedSlots = values.reduce((sum, value) => sum + Math.round(capacity * value / 100), 0);
-  const setValue = (index: number, value: number) => setDraft(previous => ({ ...previous, [blockId]: values.map((current, currentIndex) => currentIndex === index ? Math.max(0, Math.min(100, value)) : current) }));
+  const changedAreaCount = values.filter((value, index) => value !== (baseline[index] ?? 0)).length;
+  const setValue = (index: number, value: number) => setDraft(previous => ({
+    ...previous,
+    [allocationKey]: values.map((current, currentIndex) => currentIndex === index
+      ? Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : current
+      : current),
+  }));
   const revert = () => {
-    setDraft(previous => ({ ...previous, [blockId]: [...baseline] }));
-    toast({ title: "Draft reverted", description: "Proposed percentages restored to the last saved allocation." });
+    setDraft(previous => ({ ...previous, [allocationKey]: [...baseline] }));
+    toast({ title: "Changes cancelled", description: `Revised allocations for ${activeGrade} ${storeFormat} stores were restored.` });
   };
   const save = () => {
     if (totalPercent !== 100) {
-      toast({ title: "Allocation must total 100%", description: `Current total is ${totalPercent}%. Adjust percentages before saving.`, variant: "destructive" });
+      toast({ title: "Allocation must total 100%", description: `Current total is ${totalPercent}%. Adjust percentages before applying.`, variant: "destructive" });
       return;
     }
-    setSaved(previous => ({ ...previous, [blockId]: [...values] }));
-    toast({ title: "Space revision saved", description: "The current proposal is saved as a draft." });
+    setSaved(previous => ({ ...previous, [allocationKey]: [...values] }));
+    toast({ title: "Space allocation applied", description: `${activeGrade} grade allocations for ${block?.name ?? "the selected block"} and ${storeFormat} stores have been saved.` });
   };
+  const allocationColors = ["bg-primary", "bg-primary/75", "bg-sky-600", "bg-sky-500", "bg-indigo-500", "bg-blue-400"];
 
   return (
     <div className="space-y-4">
-      <ScreenHeader title="Space Revision" description="Review and revise facing-slot allocation for a block and store grade." right={<div className="flex gap-2"><Button variant="outline" size="sm" onClick={revert} className="h-9 text-xs">Revert changes</Button><Button size="sm" onClick={save} className="h-9 gap-2 bg-primary text-xs hover:bg-primary/90"><Check className="h-4 w-4" /> Save draft</Button></div>} />
+      <ScreenHeader title="Space Revision" description="Review and revise merchandise-area allocations by block and store format." />
       <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-2">
-        <SelectField label="MERCHANDISING BLOCK" value={blockId} onChange={value => setBlockId(value)} options={blocks.map(item => ({ value: item.id, label: item.name }))} />
-        <SelectField label="STORE GRADE" value={grade} onChange={setGrade} options={gradeNames.map(value => ({ value, label: `${value} grade` }))} />
+        <SelectField label="MERCHANDISING BLOCK" value={block?.id ?? ""} onChange={setBlockId} options={blocks.map(item => ({ value: item.id, label: item.name }))} />
+        <SelectField label="STORE FORMAT" value={storeFormat} onChange={setStoreFormat} options={formats.map(format => ({ value: format, label: format }))} />
       </div>
-      <div className="grid gap-4 border-y border-slate-200 bg-white px-4 py-3 sm:grid-cols-4">
-        <Metric label="Available capacity" value={`${capacity} slots`} detail={`Illustrative ${grade} grade`}/>
-        <Metric label="Allocated capacity" value={`${allocatedSlots} slots`} detail={`${Math.round(allocatedSlots / capacity * 100)}% of capacity`} />
-        <Metric label="Allocation total" value={`${totalPercent}%`} detail={totalPercent === 100 ? "Balanced to 100%" : `${totalPercent < 100 ? `${100 - totalPercent}% unallocated` : `${totalPercent - 100}% over allocation`}`} />
-        <Metric label="Changed areas" value={String(values.filter((value, index) => value !== baseline[index]).length)} detail="Current vs proposed" />
-      </div>
-      <div className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${totalPercent === 100 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-        {totalPercent === 100 ? <Check className="mt-0.5 h-4 w-4" /> : <CircleAlert className="mt-0.5 h-4 w-4" />}
-        <span>{totalPercent === 100 ? "Allocation balances to 100%. Proposed facing slots are within available capacity." : `Allocation currently totals ${totalPercent}%. The app will not rebalance the remaining ${Math.abs(100 - totalPercent)}%; adjust area percentages before saving.`}</span>
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.7fr)]">
-        <Panel title="Merchandise area allocation" description={`${block?.name} · ${grade} store grade · ${capacity} illustrative facing slots`}>
-          <Table><TableHeader><TableRow><TableHead>Merchandise area</TableHead><TableHead>Current</TableHead><TableHead>Proposed</TableHead><TableHead>Current slots</TableHead><TableHead>Proposed slots</TableHead><TableHead>Change</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-            <TableBody>{areas.map((id, index) => {
-              const current = baseline[index] ?? 0;
-              const proposed = values[index] ?? 0;
-              const currentSlots = Math.round(capacity * current / 100);
-              const proposedSlots = Math.round(capacity * proposed / 100);
-              const change = proposedSlots - currentSlots;
-              return <TableRow key={id}>
-                <TableCell className="font-medium text-slate-800">{areaName(id)}{proposed === 0 && <span className="ml-2 text-[10px] font-normal text-slate-400">zero allocation</span>}</TableCell>
-                <TableCell className="text-slate-600">{current}%</TableCell>
-                <TableCell><label className="flex w-24 items-center gap-1"><Input type="number" min="0" max="100" value={proposed} onChange={event => setValue(index, Number(event.target.value))} className="h-8 w-16 text-right text-xs" aria-label={`${areaName(id)} proposed allocation`} /><span className="text-xs text-slate-400">%</span></label></TableCell>
-                <TableCell className="tabular-nums text-slate-600">{currentSlots}</TableCell><TableCell className="font-medium tabular-nums text-slate-800">{proposedSlots}</TableCell>
-                <TableCell className={`tabular-nums ${change > 0 ? "text-emerald-700" : change < 0 ? "text-rose-700" : "text-slate-400"}`}>{change > 0 ? `+${change}` : change}</TableCell><TableCell><Status value={change ? "Changed" : "Active"} /></TableCell>
-              </TableRow>;
-            })}</TableBody>
-          </Table>
-        </Panel>
-        <Panel title="Allocation comparison" description="The bar represents share of configured facing slots.">
-          <div className="space-y-4 p-4">
-            <div><div className="mb-1.5 flex justify-between text-[10px] font-medium text-slate-600"><span>Current</span><span>{baseline.reduce((sum, value) => sum + value, 0)}%</span></div><div className="flex h-5 overflow-hidden rounded-sm border border-slate-200">{baseline.map((value, index) => <div key={areas[index]} title={`${areaName(areas[index])}: ${value}%`} style={{ width: `${value}%` }} className={`${["bg-primary", "bg-primary/75", "bg-sky-600", "bg-emerald-500", "bg-amber-500"][index % 5]} border-r border-white/50`} />)}</div></div>
-            <div><div className="mb-1.5 flex justify-between text-[10px] font-medium text-slate-600"><span>Proposed</span><span className={totalPercent === 100 ? "text-slate-600" : "text-amber-700"}>{totalPercent}%</span></div><div className="flex h-5 overflow-hidden rounded-sm border border-slate-200">{values.map((value, index) => <div key={areas[index]} title={`${areaName(areas[index])}: ${value}%`} style={{ width: `${value}%` }} className={`${["bg-primary", "bg-primary/75", "bg-sky-600", "bg-emerald-500", "bg-amber-500"][index % 5]} border-r border-white/50`} />)}</div></div>
-            <div className="space-y-1.5 border-t border-slate-100 pt-3">{areas.map((id, index) => <div key={id} className="flex items-center gap-2 text-[10px]"><span className={`h-2.5 w-2.5 rounded-sm ${["bg-primary", "bg-primary/75", "bg-sky-600", "bg-emerald-500", "bg-amber-500"][index % 5]}`} /><span className="flex-1 text-slate-600">{areaName(id)}</span><span className="tabular-nums text-slate-700">{values[index] ?? 0}%</span><span className="w-16 text-right tabular-nums text-slate-500">{Math.round(capacity * (values[index] ?? 0) / 100)} slots</span></div>)}</div>
-            <p className="border-t border-slate-100 pt-3 text-[10px] leading-relaxed text-slate-500">Capacity is {capacity} available slots. Allocations remain as entered; rounded slot totals may vary by one slot.</p>
+      <Panel
+        title="Space Allocation"
+        description={`${block?.name ?? "Merchandising block"} · ${storeFormat} format · ${activeGrade} grade`}
+        right={<div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={revert} className="h-8 text-xs">Cancel / Revert</Button><Button size="sm" onClick={save} className="h-8 gap-1.5 bg-primary text-xs hover:bg-primary/90"><Check className="h-3.5 w-3.5" /> Save / Apply</Button></div>}
+      >
+        <div className="space-y-4 p-4">
+          <div role="tablist" aria-label="Store grade" className="flex flex-wrap gap-1 border-b border-slate-200">
+            {availableGrades.map(item => (
+              <button
+                key={item.grade}
+                type="button"
+                role="tab"
+                aria-selected={item.grade === activeGrade}
+                onClick={() => setGrade(item.grade)}
+                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${item.grade === activeGrade ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+              >
+                {item.grade}
+              </button>
+            ))}
           </div>
-        </Panel>
-      </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-4 text-slate-600">
+              <span>Minimum required: <strong className="font-semibold text-slate-800">{gradeConfig.minimumSlots} slots</strong></span>
+              <span>Available capacity: <strong className="font-semibold text-slate-800">{gradeConfig.capacity} slots</strong></span>
+              <span>{changedAreaCount} changed {changedAreaCount === 1 ? "area" : "areas"}</span>
+            </div>
+            <span className={`font-semibold tabular-nums ${totalPercent === 100 ? "text-emerald-700" : "text-amber-700"}`}>
+              Revised allocation: {totalPercent}%
+            </span>
+          </div>
+          <div
+            role="img"
+            aria-label={`Revised allocation distribution totals ${totalPercent} percent`}
+            className="flex h-3 overflow-hidden rounded border border-slate-200 bg-slate-50"
+          >
+            {values.map((value, index) => value > 0 && (
+              <div key={areas[index]} title={`${areaName(areas[index])}: ${value}%`} style={{ width: `${value}%` }} className={`${allocationColors[index % allocationColors.length]} border-r border-white/70 last:border-r-0`} />
+            ))}
+          </div>
+          <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${totalPercent === 100 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+            {totalPercent === 100 ? <Check className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
+            <span>{totalPercent === 100 ? "Allocation balances to 100%." : `Allocation totals ${totalPercent}%. Revised percentages must total 100% before saving.`}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[680px] text-xs">
+              <TableHeader><TableRow>
+                <TableHead className="h-9 px-3 text-[10px] tracking-wide">Merchandise area</TableHead>
+                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Current allocation</TableHead>
+                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Revised allocation</TableHead>
+                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Current slots</TableHead>
+                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Revised slots</TableHead>
+                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Change in slots</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>{areas.map((id, index) => {
+                const current = baseline[index] ?? 0;
+                const revised = values[index] ?? 0;
+                const currentSlots = Math.round(gradeConfig.capacity * current / 100);
+                const revisedSlots = Math.round(gradeConfig.capacity * revised / 100);
+                const change = revisedSlots - currentSlots;
+                return <TableRow key={id}>
+                  <TableCell className="px-3 py-2 font-medium text-slate-800">{areaName(id)}{revised === 0 && <span className="ml-2 text-[10px] font-normal text-slate-400">zero allocation</span>}</TableCell>
+                  <TableCell className="px-3 py-2 text-right tabular-nums text-slate-600">{current}%</TableCell>
+                  <TableCell className="px-3 py-2">
+                    <label className="ml-auto flex w-20 items-center justify-end gap-1">
+                      <Input type="number" min="0" max="100" step="1" value={revised} onChange={event => setValue(index, Number(event.target.value))} className="h-7 w-14 text-right text-xs" aria-label={`${areaName(id)} revised allocation percentage`} />
+                      <span className="text-slate-400">%</span>
+                    </label>
+                  </TableCell>
+                  <TableCell className="px-3 py-2 text-right tabular-nums text-slate-600">{currentSlots}</TableCell>
+                  <TableCell className="px-3 py-2 text-right font-medium tabular-nums text-slate-800">{revisedSlots}</TableCell>
+                  <TableCell className={`px-3 py-2 text-right tabular-nums ${change > 0 ? "text-emerald-700" : change < 0 ? "text-rose-700" : "text-slate-400"}`}>{change > 0 ? `+${change}` : change}</TableCell>
+                </TableRow>;
+              })}</TableBody>
+            </Table>
+          </div>
+          <p className="text-[10px] text-slate-500">Minimums and capacities are planning values; allocation percentages and slot counts remain editable.</p>
+        </div>
+      </Panel>
     </div>
+  );
+}
+
+function PlanogramProduct({ sku, selected, onSelect, onDragStart }: {
+  sku: PlanningSku;
+  selected: boolean;
+  onSelect: () => void;
+  onDragStart: (event: React.DragEvent<HTMLButtonElement>) => void;
+}) {
+  const area = merchAreas.find(item => item.id === sku.areaId);
+  const icon = area?.department === "Beverages"
+    ? Droplets
+    : sku.areaId.includes("audio") || sku.areaId === "headphones"
+      ? Headphones
+      : sku.areaId.includes("chargers") || sku.areaId.includes("mobile")
+        ? PlugZap
+        : sku.areaId === "books" || sku.areaId === "paper"
+          ? BookOpen
+          : Package;
+  const ProductIcon = icon;
+  const brandColors: Record<string, string> = {
+    "Coca-Cola": "bg-red-700",
+    Sprite: "bg-emerald-700",
+    Fanta: "bg-orange-600",
+    "Northstar Springs": "bg-sky-800",
+    "Orchard Press": "bg-amber-700",
+    SoundPod: "bg-slate-900",
+    Volt: "bg-yellow-600",
+    Connect: "bg-blue-800",
+    Pulse: "bg-violet-800",
+    WHSmith: "bg-rose-800",
+  };
+  const brandColor = brandColors[sku.brand] ?? "bg-indigo-800";
+
+  return (
+    <button
+      type="button"
+      draggable
+      onClick={onSelect}
+      onMouseEnter={onSelect}
+      onDragStart={onDragStart}
+      aria-label={`${sku.code}, ${sku.description}`}
+      className={`group relative flex h-[112px] min-w-0 flex-1 flex-col overflow-hidden rounded-t-[3px] border border-slate-300 bg-white text-left shadow-[0_2px_4px_rgba(15,23,42,0.18)] hover:z-10 hover:shadow-md focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selected ? "z-[1] outline outline-2 outline-offset-1 outline-blue-500" : ""}`}
+    >
+      <span className={`flex h-5 shrink-0 items-center justify-center truncate px-1 text-[8px] font-black tracking-[0.08em] text-white ${brandColor}`}>{sku.brand}</span>
+      <span className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 bg-slate-50 px-1">
+        <ProductIcon className="h-8 w-8 shrink-0 stroke-[1.5] text-slate-800" aria-hidden="true" />
+        <span className="line-clamp-2 text-center text-[8px] font-bold leading-tight text-slate-800">{sku.description}</span>
+      </span>
+      <span className="flex h-4 shrink-0 items-center justify-center bg-white px-1 font-mono text-[7px] font-semibold text-slate-500">{sku.code}</span>
+    </button>
   );
 }
 
@@ -1316,6 +1439,8 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
   const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<"area" | "sku" | "facings">("area");
+  const [workspaceView, setWorkspaceView] = useState<"allocation" | "planogram">("allocation");
+  const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const [storeSearch, setStoreSearch] = useState("");
   const [formatFilter, setFormatFilter] = useState("All formats");
   const formats = Array.from(new Set(initialStores.map(store => store.format))).sort();
@@ -1397,6 +1522,46 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
     if (sortBy === "facings") return (getAssignment(second.id)?.facings ?? 0) - (getAssignment(first.id)?.facings ?? 0) || first.code.localeCompare(second.code);
     return blockAreas.indexOf(first.areaId) - blockAreas.indexOf(second.areaId) || first.code.localeCompare(second.code);
   });
+  const selectedPlanogramFixture = storeFixtures.find(item => item.fixtureCode === fixtureCode) ?? storeFixtures[0];
+  const planogramAssignments = selectedPlanogramFixture
+    ? blockAssignments.filter(item => item.fixtureCode === selectedPlanogramFixture.fixtureCode && item.facings > 0)
+    : [];
+  const planogramCapacity = selectedPlanogramFixture?.totalCapacity ?? 0;
+  const planogramAssigned = planogramAssignments.reduce((sum, item) => sum + item.facings, 0);
+  const planogramRemaining = planogramCapacity - planogramAssigned;
+  const planogramUtilization = planogramCapacity > 0 ? planogramAssigned / planogramCapacity * 100 : 0;
+  const planogramShelfCount = selectedPlanogramFixture
+    ? selectedPlanogramFixture.fixture.type === "Cooler" ? 4
+      : selectedPlanogramFixture.fixture.type === "Till Unit" ? 3
+        : selectedPlanogramFixture.fixture.type === "Wall Bay" ? 5 : 4
+    : 4;
+  const planogramShelfCapacity = Math.max(1, Math.ceil(planogramCapacity / planogramShelfCount));
+  const shelfRows = Array.from({ length: planogramShelfCount }, () => [] as { assignment: FacingAssignment; sku: PlanningSku }[]);
+  let placedFacings = 0;
+  planogramAssignments
+    .slice()
+    .sort((first, second) => first.areaId.localeCompare(second.areaId) || (skus.find(sku => sku.id === first.skuId)?.code ?? "").localeCompare(skus.find(sku => sku.id === second.skuId)?.code ?? ""))
+    .forEach(assignment => {
+      const sku = skus.find(item => item.id === assignment.skuId);
+      if (!sku || placedFacings >= planogramCapacity) return;
+      const preferredShelf = assignment.shelfIndex;
+      const firstShelf = Number.isInteger(preferredShelf)
+        ? Math.max(0, Math.min(planogramShelfCount - 1, preferredShelf!))
+        : shelfRows.findIndex(row => row.length < planogramShelfCapacity);
+      let remainingFacings = Math.min(assignment.facings, planogramCapacity - placedFacings);
+      for (let shelfOffset = 0; shelfOffset < planogramShelfCount && remainingFacings > 0; shelfOffset += 1) {
+        const shelfIndex = (Math.max(0, firstShelf) + shelfOffset) % planogramShelfCount;
+        const availableOnShelf = Math.max(0, planogramShelfCapacity - shelfRows[shelfIndex].length);
+        const facingsToPlace = Math.min(availableOnShelf, remainingFacings);
+        for (let facing = 0; facing < facingsToPlace; facing += 1) {
+          shelfRows[shelfIndex].push({ assignment, sku });
+        }
+        placedFacings += facingsToPlace;
+        remainingFacings -= facingsToPlace;
+      }
+    });
+  const selectedPlanogramSku = (selectedSkuId ? eligibleSkus.find(sku => sku.id === selectedSkuId) : undefined)
+    ?? planogramAssignments.map(assignment => skus.find(sku => sku.id === assignment.skuId)).find((sku): sku is PlanningSku => Boolean(sku));
   const storesForList = storesForFormat
     .filter(store => `${store.id} ${store.name} ${store.format} ${store.region} ${store.channel}`.toLowerCase().includes(storeSearch.trim().toLowerCase()))
     .sort((first, second) => first.id.localeCompare(second.id));
@@ -1430,7 +1595,7 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
     if (existing) {
       setAssignments(previous => [
         ...previous.filter(item => item.storeId !== selectedStoreId || item.blockId !== selectedBlockId || item.skuId !== skuId),
-        { ...existing, fixtureCode: nextFixtureCode },
+        { ...existing, fixtureCode: nextFixtureCode, shelfIndex: existing.fixtureCode === nextFixtureCode ? existing.shelfIndex : undefined },
       ]);
     } else {
       setAssignments(previous => [...previous, {
@@ -1444,6 +1609,47 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
       }]);
     }
     setFixtureCode(nextFixtureCode);
+  };
+  const dropSkuOnShelf = (event: React.DragEvent<HTMLElement>, shelfIndex: number) => {
+    event.preventDefault();
+    const skuId = event.dataTransfer.getData("text/plain");
+    const sku = eligibleSkus.find(item => item.id === skuId);
+    if (!sku || !selectedPlanogramFixture?.areaSlots.some(area => area.areaId === sku.areaId)) {
+      toast({
+        title: "SKU is not compatible with this fixture",
+        description: "Choose a fixture that supports the SKU's merchandise area.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const existing = getAssignment(sku.id);
+    setAssignments(previous => {
+      const index = previous.findIndex(item => item.storeId === selectedStoreId && item.blockId === selectedBlockId && item.skuId === sku.id);
+      if (index >= 0) {
+        return previous.map((item, itemIndex) => itemIndex === index
+          ? { ...item, fixtureCode: selectedPlanogramFixture.fixtureCode, facings: item.facings > 0 ? item.facings : 1, shelfIndex }
+          : item);
+      }
+      return [...previous, {
+        id: `as-${Date.now()}-${sku.id}`,
+        storeId: selectedStoreId,
+        blockId: selectedBlockId,
+        areaId: sku.areaId,
+        fixtureCode: selectedPlanogramFixture.fixtureCode,
+        skuId: sku.id,
+        facings: 1,
+        shelfIndex,
+      }];
+    });
+    setFixtureCode(selectedPlanogramFixture.fixtureCode);
+    setSelectedSkuId(sku.id);
+    if (!existing || existing.fixtureCode !== selectedPlanogramFixture.fixtureCode) {
+      toast({ title: "SKU assigned to fixture", description: `${sku.code} · ${selectedPlanogramFixture.fixture.name}` });
+    }
+  };
+  const startSkuDrag = (event: React.DragEvent<HTMLElement>, skuId: string) => {
+    event.dataTransfer.setData("text/plain", skuId);
+    event.dataTransfer.effectAllowed = "move";
   };
   const updateFacings = (skuId: string, facings: number) => {
     const existing = getAssignment(skuId);
@@ -1496,8 +1702,12 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
           <div><span className="font-semibold text-slate-800">{selectedStore.id} · {selectedStore.name}</span><span className="mx-2 text-slate-300">/</span><span className="text-slate-600">{selectedStore.format}</span><span className="mx-2 text-slate-300">/</span><span className="font-medium text-primary">{selectedBlock.name}</span></div>
           <span className="text-slate-500">Store grade {currentGrade} · allocation target {targetCapacity} slots</span>
         </div>
+        <div role="tablist" aria-label="Facings workspace view" className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+          <button type="button" role="tab" aria-selected={workspaceView === "allocation"} onClick={() => setWorkspaceView("allocation")} className={`flex h-7 items-center gap-1.5 rounded px-2.5 text-[10px] font-semibold ${workspaceView === "allocation" ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:text-slate-800"}`}>SKU Allocation</button>
+          <button type="button" role="tab" aria-selected={workspaceView === "planogram"} onClick={() => setWorkspaceView("planogram")} className={`flex h-7 items-center gap-1.5 rounded px-2.5 text-[10px] font-semibold ${workspaceView === "planogram" ? "bg-blue-50 text-blue-700" : "text-slate-500 hover:text-slate-800"}`}>Planogram View</button>
+        </div>
         <div className="grid gap-3 xl:grid-cols-2">
-          <Panel title="Merchandise area slot allocation" description={`${selectedBlock.name} · illustrative ${currentGrade} grade allocation`}>
+          <Panel title="Merchandise area slot allocation" description={`${selectedBlock.name} · ${currentGrade} grade allocation`}>
             <Table className="text-xs"><TableHeader><TableRow className="h-8"><TableHead className="h-8 px-3 py-1 text-[10px]">Merchandise Area</TableHead><TableHead className="h-8 px-3 py-1 text-right text-[10px]">Allocated Slots</TableHead><TableHead className="h-8 px-3 py-1 text-right text-[10px]">Fixture Capacity</TableHead><TableHead className="h-8 px-3 py-1 text-right text-[10px]">Assigned / Remaining</TableHead></TableRow></TableHeader><TableBody>
               {rowsByArea.map(area => <TableRow key={area.areaId} className="h-8"><TableCell className="px-3 py-1 font-medium text-slate-700">{areaName(area.areaId)}</TableCell><TableCell className="px-3 py-1 text-right tabular-nums text-slate-600">{area.target}</TableCell><TableCell className="px-3 py-1 text-right tabular-nums text-slate-600">{area.areaAvailable}</TableCell><TableCell className="px-3 py-1 text-right tabular-nums"><span className={area.areaAssigned > area.areaAvailable ? "font-semibold text-rose-700" : "text-slate-700"}>{area.areaAssigned}</span><span className="text-slate-400"> / {area.areaRemaining}</span></TableCell></TableRow>)}
             </TableBody></Table>
@@ -1523,7 +1733,7 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
         </div>
         {totalAssigned > totalAvailable && <div role="alert" className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />Assigned facings exceed available capacity by {totalAssigned - totalAvailable} slots. Reduce facings or reassign SKUs to a fixture with remaining capacity.</div>}
         {totalAvailable > 0 && totalRemaining === 0 && <div role="status" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">All available facing slots are allocated.</div>}
-        <Panel title="Eligible SKU facings" description={`${eligibleSkus.length} eligible SKUs across ${blockAreas.length} merchandise areas`} right={<div className="flex items-center gap-2"><span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search SKU, description or area" className="h-8 w-56 pl-8 text-xs" /></span><SelectField label="" value={sortBy} onChange={value => setSortBy(value as typeof sortBy)} options={[{ value: "area", label: "Sort: area" }, { value: "sku", label: "Sort: style code" }, { value: "facings", label: "Sort: facings" }]} className="w-32" /></div>}>
+        {workspaceView === "allocation" ? <Panel title="Eligible SKU facings" description={`${eligibleSkus.length} eligible SKUs across ${blockAreas.length} merchandise areas`} right={<div className="flex items-center gap-2"><span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search SKU, description or area" className="h-8 w-56 pl-8 text-xs" /></span><SelectField label="" value={sortBy} onChange={value => setSortBy(value as typeof sortBy)} options={[{ value: "area", label: "Sort: area" }, { value: "sku", label: "Sort: style code" }, { value: "facings", label: "Sort: facings" }]} className="w-32" /></div>}>
           <Table className="border-collapse text-xs"><TableHeader><TableRow className="h-10 border-b border-slate-200 bg-slate-50/70">
             <TableHead className="h-10 border-r px-2 py-1 text-[10px]">Style ID</TableHead><TableHead className="h-10 min-w-44 border-r px-2 py-1 text-[10px]">Description</TableHead><TableHead className="h-10 border-r px-2 py-1 text-right text-[10px]">Sales (£M)</TableHead><TableHead className="h-10 border-r px-2 py-1 text-right text-[10px]">Units Sold</TableHead><TableHead className="h-10 border-r px-2 py-1 text-center text-[10px]">Grade</TableHead><TableHead className="h-10 min-w-52 border-r px-2 py-1 text-[10px]">Assigned Fixture</TableHead><TableHead className="h-10 border-r bg-primary/5 px-2 py-1 text-center text-[10px]">Facings</TableHead><TableHead className="h-10 px-2 py-1 text-center text-[10px]">Status</TableHead>
           </TableRow></TableHeader><TableBody>
@@ -1547,7 +1757,129 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
             })}
             {!visibleSkus.length && <TableRow><TableCell colSpan={8} className="h-16 text-center text-xs text-slate-500">{eligibleSkus.length ? "No SKUs match your search." : "No eligible SKUs are configured for this merchandising block."}</TableCell></TableRow>}
           </TableBody></Table>
-        </Panel>
+        </Panel> : (
+          <div className="grid gap-3 xl:grid-cols-[240px_minmax(0,1fr)]">
+            <aside className="space-y-3">
+              <section className="rounded-md border border-slate-200 bg-white p-3">
+                <SelectField
+                  label="FIXTURE"
+                  value={selectedPlanogramFixture?.fixtureCode ?? ""}
+                  onChange={setFixtureCode}
+                  options={storeFixtures.map(item => ({ value: item.fixtureCode, label: `${item.fixture.name} · ${item.fixture.subtype}` }))}
+                />
+                {selectedPlanogramFixture && <p className="mt-1 text-[10px] text-slate-500">{selectedPlanogramFixture.fixture.type} · {selectedPlanogramFixture.fixture.dimensions}</p>}
+                <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-500">Facing slots</span><strong>{planogramCapacity}</strong></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Assigned facings</span><strong className={planogramAssigned > planogramCapacity ? "text-rose-700" : ""}>{planogramAssigned}</strong></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Remaining</span><strong className={planogramRemaining < 0 ? "text-rose-700" : ""}>{Math.max(0, planogramRemaining)}</strong></div>
+                  <div className="flex justify-between text-[10px] text-slate-500"><span>Utilisation</span><span>{planogramUtilization.toFixed(1)}%</span></div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${planogramUtilization > 100 ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, planogramUtilization)}%` }} /></div>
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
+                <div className="border-b border-slate-200 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-[11px] font-semibold text-slate-800">Eligible SKUs</h3>
+                    <span className="text-[10px] text-slate-500">{visibleSkus.length} listed</span>
+                  </div>
+                  <div className="relative mt-2">
+                    <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-slate-400" />
+                    <Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search SKU or area" className="h-7 pl-7 text-[10px]" />
+                  </div>
+                </div>
+                <div className="max-h-[470px] divide-y divide-slate-100 overflow-y-auto">
+                  {visibleSkus.map(sku => {
+                    const assignment = getAssignment(sku.id);
+                    const fixtureSupportsSku = selectedPlanogramFixture?.areaSlots.some(area => area.areaId === sku.areaId) ?? false;
+                    return (
+                      <button
+                        key={sku.id}
+                        type="button"
+                        draggable={fixtureSupportsSku}
+                        onClick={() => setSelectedSkuId(sku.id)}
+                        onDragStart={event => startSkuDrag(event, sku.id)}
+                        className={`w-full cursor-grab px-3 py-2 text-left active:cursor-grabbing ${selectedSkuId === sku.id ? "bg-blue-50" : "hover:bg-slate-50"} ${!fixtureSupportsSku ? "opacity-50" : ""}`}
+                        title={fixtureSupportsSku ? "Drag onto a shelf to assign or move this SKU" : "This fixture does not support the SKU's merchandise area"}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="min-w-0">
+                            <span className="block font-mono text-[10px] font-semibold text-primary">{sku.code}</span>
+                            <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-800">{sku.description}</span>
+                            <span className="mt-0.5 block text-[9px] text-slate-500">{areaName(sku.areaId)}</span>
+                          </span>
+                          <span className="shrink-0 text-right text-[9px] text-slate-500">
+                            {assignment?.fixtureCode === selectedPlanogramFixture?.fixtureCode ? `${assignment.facings} facing${assignment.facings === 1 ? "" : "s"}` : assignment ? fixtureName(assignment.fixtureCode, fixtureList) : fixtureSupportsSku ? "Drag to assign" : "Incompatible"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {!visibleSkus.length && <p className="px-3 py-5 text-center text-[10px] text-slate-500">No SKUs match your search.</p>}
+                </div>
+              </section>
+            </aside>
+
+            <section className="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800">{selectedPlanogramFixture?.fixture.name ?? "No compatible fixture"}</h3>
+                  <p className="text-[10px] text-slate-500">{selectedPlanogramFixture?.fixture.subtype ?? "Add a compatible fixture to this store and block"} · Front-facing allocation preview</p>
+                </div>
+                <span className="text-[10px] text-slate-400">Drag SKUs onto a shelf to assign · illustrative, not an approved planogram</span>
+              </div>
+              {planogramAssigned > planogramCapacity && <div role="alert" className="flex items-center gap-2 border-b border-rose-200 bg-rose-50 px-3 py-2 text-[10px] text-rose-800"><CircleAlert className="h-3.5 w-3.5 shrink-0" /><strong>Over capacity by {planogramAssigned - planogramCapacity} facings.</strong> Reduce allocation in SKU Allocation.</div>}
+              <div className="overflow-x-auto bg-slate-50 px-3 py-4 sm:px-6">
+                {selectedPlanogramFixture ? (
+                  <div className="mx-auto min-w-[550px] max-w-[1000px] overflow-hidden rounded-t-md border-x-[10px] border-t-[10px] border-slate-500 bg-slate-300 shadow-[0_5px_14px_rgba(15,23,42,0.16)]">
+                    <div className="flex h-8 items-center justify-between bg-slate-800 px-3 text-[9px] font-bold tracking-[0.14em] text-white">
+                      <span>{selectedPlanogramFixture.fixture.name.toUpperCase()}</span>
+                      <span>{selectedBlock.name.toUpperCase()}</span>
+                      <span>{planogramCapacity} SLOTS</span>
+                    </div>
+                    {shelfRows.map((products, shelfIndex) => (
+                      <div
+                        key={shelfIndex}
+                        onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }}
+                        onDrop={event => dropSkuOnShelf(event, shelfIndex)}
+                        className="relative flex h-[126px] items-end gap-1.5 border-b-[10px] border-slate-400 bg-white px-2 pb-2 pt-1 shadow-[inset_0_-4px_5px_rgba(15,23,42,0.10)] transition-colors hover:bg-blue-50/50"
+                        aria-label={`Shelf ${planogramShelfCount - shelfIndex}, drop eligible SKUs here`}
+                      >
+                        <span className="absolute left-0 top-1/2 z-10 -translate-x-[calc(100%+7px)] -translate-y-1/2 whitespace-nowrap text-[8px] font-bold uppercase tracking-wider text-slate-400">{`S${planogramShelfCount - shelfIndex}`}</span>
+                        {products.map(({ sku }, facingIndex) => (
+                          <PlanogramProduct
+                            key={`${sku.id}-${shelfIndex}-${facingIndex}`}
+                            sku={sku}
+                            selected={selectedPlanogramSku?.id === sku.id}
+                            onSelect={() => setSelectedSkuId(sku.id)}
+                            onDragStart={event => startSkuDrag(event, sku.id)}
+                          />
+                        ))}
+                        {!products.length && <span className="mb-1 ml-2 text-[10px] text-slate-300">Drop a compatible SKU on this shelf</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : <div className="flex min-h-56 items-center justify-center text-xs text-slate-500">No compatible fixtures are assigned for this block.</div>}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-3 py-2">
+                {selectedPlanogramSku ? (
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-slate-800">{selectedPlanogramSku.description}</p>
+                    <p className="text-[10px] text-slate-500">
+                      <span className="font-mono text-blue-700">{selectedPlanogramSku.code}</span>
+                      <span className="px-1.5 text-slate-300">·</span>{areaName(selectedPlanogramSku.areaId)}
+                      <span className="px-1.5 text-slate-300">·</span>{fixtureName(getAssignment(selectedPlanogramSku.id)?.fixtureCode ?? "", fixtureList) || "Not assigned"}
+                    </p>
+                  </div>
+                ) : <p className="text-[10px] text-slate-500">Select or hover a product to inspect its allocation.</p>}
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">SKU facings</p>
+                  <p className="text-sm font-bold tabular-nums text-slate-800">{selectedPlanogramSku ? getAssignment(selectedPlanogramSku.id)?.facings ?? 0 : 0}</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
       </> : <Panel title="No compatible merchandising block" description="The selected store has no active fixture relationship for the available merchandising blocks."><p className="px-3 pb-3 text-xs text-slate-500">Choose another store format or store with configured compatible fixtures.</p></Panel>}
       <p className="text-[10px] text-slate-500">Facing slots are configured per fixture, block and merchandise area. EFT is physical space and is not converted to facing capacity.</p>
     </div>
@@ -1591,10 +1923,6 @@ export default function SpacePlanning() {
 
   return (
     <ModuleShell>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[10px] text-slate-500"><span className="font-medium text-slate-700">{screen.label}</span><span>·</span><span>Spring / Summer 2025 planning cycle</span></div>
-        <Button variant="ghost" size="sm" onClick={() => setLocation("/rap/grading-size")} className="h-7 gap-1 text-[10px] text-slate-600 hover:text-primary">Continue to existing RAP SKU Grading <ArrowRight className="h-3.5 w-3.5" /></Button>
-      </div>
       {page}
     </ModuleShell>
   );
