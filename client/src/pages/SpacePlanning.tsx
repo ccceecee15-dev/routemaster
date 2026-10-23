@@ -6,16 +6,14 @@ import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
-  BookOpen,
-  Droplets,
-  Headphones,
-  Package,
-  PlugZap,
+  Eye,
+  Image as ImageIcon,
   Plus,
   Search,
   Smartphone,
   SlidersHorizontal,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -41,18 +39,23 @@ import { useToast } from "@/hooks/use-toast";
 import {
   fixtureCompatibility as initialCompatibility,
   fixtureBlockAllocations,
+  fixturePlanogramLayouts,
   compatibilityFixtureExamples,
   compatibilityFixtureRules,
   fixtureTypes as initialFixtureTypes,
   fixtures as initialFixtures,
+  fixtureImageCredits,
   initialAssignments,
   initialBlocks,
+  initialFormatBlocks,
   initialInventory,
   initialStores,
   merchAreaCategories,
   merchAreas,
   skus,
+  storeFormats,
   type FacingAssignment,
+  type FormatPlanningBlock,
   type Fixture,
   type FixtureCompatibility,
   type FixtureType,
@@ -216,6 +219,14 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
   const [fixtureCode, setFixtureCode] = useState(fixtureList[0]?.code ?? "");
   const [quantity, setQuantity] = useState("1");
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkFixtureCodes, setBulkFixtureCodes] = useState<string[]>([]);
+  const [bulkQuantities, setBulkQuantities] = useState<Record<string, string>>({});
+  const [bulkRegion, setBulkRegion] = useState("");
+  const [bulkProperty, setBulkProperty] = useState("");
+  const [bulkChannel, setBulkChannel] = useState("");
+  const [bulkFormat, setBulkFormat] = useState("");
 
   const updateHierarchy = (field: "region" | "property" | "channel" | "format", value: string) => {
     const next = { region, property, channel, format, [field]: value };
@@ -231,7 +242,7 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
       (!next.region || store.region === next.region)
       && (!next.property || store.property === next.property)
       && (!next.channel || store.channel === next.channel)
-      && store.format === next.format
+      && store.storeFormatId === next.format
     )) next.format = "";
     setRegion(next.region);
     setProperty(next.property);
@@ -252,7 +263,7 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
     (!region || store.region === region)
     && (!property || store.property === property)
     && (!channel || store.channel === channel)
-    && (!format || store.format === format)
+    && (!format || store.storeFormatId === format)
     && (!search.trim() || `${store.id} ${store.name}`.toLowerCase().includes(search.trim().toLowerCase()))
   );
   const selectedStore = stores.find(store => store.id === storeId);
@@ -260,9 +271,38 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
   const visibleAssignments = selectedBlockId
     ? storeAssignments.filter(row => compatibility.some(rule => rule.fixtureCode === row.fixtureCode && rule.blockId === selectedBlockId))
     : storeAssignments;
-  const availableTypes = Array.from(new Set(fixtureList.map(fixture => fixture.type))).sort();
-  const fixturesOfType = fixtureList.filter(fixture => fixture.type === fixtureType);
+  const eligibleFixtures = selectedStore
+    ? fixtureList.filter(fixture => (fixture.applicableFormatIds ?? storeFormats.map(item => item.id)).includes(selectedStore.storeFormatId))
+    : fixtureList;
+  const availableTypes = Array.from(new Set(eligibleFixtures.map(fixture => fixture.type))).sort();
+  const fixturesOfType = eligibleFixtures.filter(fixture => fixture.type === fixtureType || fixture.code === fixtureCode);
   const selectedFixture = fixturesOfType.find(fixture => fixture.code === fixtureCode) ?? fixturesOfType[0];
+  const bulkTargetStores = stores.filter(store =>
+    (!bulkRegion || store.region === bulkRegion)
+    && (!bulkProperty || store.property === bulkProperty)
+    && (!bulkChannel || store.channel === bulkChannel)
+    && (!bulkFormat || store.storeFormatId === bulkFormat)
+  );
+  const bulkFixtures = fixtureList.filter(fixture => bulkFixtureCodes.includes(fixture.code));
+  const bulkPreview = bulkTargetStores.map(store => {
+    const eligible = bulkFixtures.filter(fixture => (fixture.applicableFormatIds ?? storeFormats.map(item => item.id)).includes(store.storeFormatId));
+    const excluded = bulkFixtures.filter(fixture => !eligible.includes(fixture));
+    const assignments = inventory.filter(row => row.storeId === store.id && bulkFixtureCodes.includes(row.fixtureCode));
+    const overrides = assignments.filter(row => row.assignmentSource === "Store override");
+    const activeCodes = new Set(assignments.filter(row => row.change !== "Removed").map(row => row.fixtureCode));
+    const preservedOverrides = overrides.filter(row => row.change === "Removed" || activeCodes.has(row.fixtureCode));
+    const addable = eligible.filter(fixture =>
+      !activeCodes.has(fixture.code)
+      && !overrides.some(row => row.fixtureCode === fixture.code),
+    );
+    return { store, eligible, excluded, overrides: preservedOverrides, activeCodes, addable };
+  });
+  const bulkEligibleStores = bulkPreview.filter(item => item.eligible.length > 0);
+  const bulkExcludedStores = bulkPreview.filter(item => item.excluded.length > 0);
+  const bulkOverrideCount = bulkPreview.reduce((total, item) => total + item.overrides.length, 0);
+  const bulkQuantitiesValid = bulkFixtureCodes.length > 0 && bulkFixtureCodes.every(code => Number.isInteger(Number(bulkQuantities[code])) && Number(bulkQuantities[code]) > 0);
+  const bulkTotalUnits = bulkPreview.reduce((total, item) =>
+    total + item.addable.reduce((storeTotal, fixture) => storeTotal + (Number(bulkQuantities[fixture.code]) || 0), 0), 0);
   const getBlockShare = (code: string, blockId: string) => {
     const compatibleBlocks = new Set(compatibility.filter(rule => rule.fixtureCode === code).map(rule => rule.blockId));
     if (!compatibleBlocks.has(blockId)) return 0;
@@ -286,20 +326,64 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
       toast({ title: "Check the fixture assignment", description: "Select a fixture definition and enter a whole quantity of at least 1.", variant: "destructive" });
       return;
     }
+    if (!(selectedFixture.applicableFormatIds ?? storeFormats.map(item => item.id)).includes(selectedStore.storeFormatId)) {
+      toast({ title: "Fixture is not eligible for this format", description: `${selectedFixture.name} is not applicable to ${storeFormats.find(item => item.id === selectedStore.storeFormatId)?.name ?? "this store format"}.`, variant: "destructive" });
+      return;
+    }
+    const duplicate = inventory.some(row =>
+      row.storeId === selectedStore.id
+      && row.fixtureCode === selectedFixture.code
+      && row.change !== "Removed"
+      && row.id !== editingAssignmentId
+    );
+    if (duplicate) {
+      toast({ title: "Fixture already assigned", description: "Edit the existing assignment instead of adding a duplicate.", variant: "destructive" });
+      return;
+    }
     if (editingAssignmentId) {
-      setInventory(previous => previous.map(row => row.id === editingAssignmentId
-        ? { ...row, fixtureCode: selectedFixture.code, quantity: parsedQuantity, change: row.change === "Existing" ? "Added" : row.change }
-        : row));
+      const currentAssignment = inventory.find(row => row.id === editingAssignmentId);
+      if (currentAssignment && currentAssignment.fixtureCode !== selectedFixture.code) {
+        setInventory(previous => {
+          const next = previous.map(row => row.id === editingAssignmentId
+            ? { ...row, change: "Removed" as const, assignmentSource: "Store override" as const }
+            : row);
+          const removedTarget = next.find(row => row.storeId === selectedStore.id && row.fixtureCode === selectedFixture.code && row.change === "Removed");
+          if (removedTarget) {
+            return next.map(row => row.id === removedTarget.id
+              ? { ...row, quantity: parsedQuantity, change: "Added" as const, assignmentSource: "Store override" as const }
+              : row);
+          }
+          return [...next, {
+            id: `inv-${Date.now()}-${previous.length + 1}`,
+            storeId: selectedStore.id,
+            fixtureCode: selectedFixture.code,
+            quantity: parsedQuantity,
+            change: "Added" as const,
+            assignmentSource: "Store override" as const,
+          }];
+        });
+      } else {
+        setInventory(previous => previous.map(row => row.id === editingAssignmentId
+          ? { ...row, fixtureCode: selectedFixture.code, quantity: parsedQuantity, change: "Added", assignmentSource: "Store override" }
+          : row));
+      }
       toast({ title: "Fixture assignment updated", description: `${selectedFixture.name} is assigned to Store ${selectedStore.id}.` });
     } else {
-      setInventory(previous => [...previous, {
-        id: `inv-${Date.now()}-${previous.length + 1}`,
-        storeId: selectedStore.id,
-        fixtureCode: selectedFixture.code,
-        quantity: parsedQuantity,
-        change: "Added",
-      }]);
-      toast({ title: "Fixture assigned", description: `${parsedQuantity} × ${selectedFixture.name} added to Store ${selectedStore.id}.` });
+      setInventory(previous => {
+        const removedAssignment = previous.find(row => row.storeId === selectedStore.id && row.fixtureCode === selectedFixture.code && row.change === "Removed");
+        if (removedAssignment) return previous.map(row => row.id === removedAssignment.id
+          ? { ...row, quantity: parsedQuantity, change: "Added", assignmentSource: "Store override" }
+          : row);
+        return [...previous, {
+          id: `inv-${Date.now()}-${previous.length + 1}`,
+          storeId: selectedStore.id,
+          fixtureCode: selectedFixture.code,
+          quantity: parsedQuantity,
+          change: "Added",
+          assignmentSource: "Store override",
+        }];
+      });
+      toast({ title: "Fixture assigned", description: `${parsedQuantity} × ${selectedFixture.name} added to Store ${selectedStore.id} as a store-level override.` });
     }
     setAddOpen(false);
     setEditingAssignmentId(null);
@@ -319,27 +403,72 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
   };
   const confirmRemove = () => {
     if (!removeId) return;
-    setInventory(previous => previous.filter(row => row.id !== removeId));
+    setInventory(previous => previous.map(row => row.id === removeId
+      ? { ...row, change: "Removed", assignmentSource: "Store override" }
+      : row));
     setRemoveId(null);
-    toast({ title: "Fixture assignment removed", description: "The store fixture assignments have been updated for this prototype." });
+    toast({ title: "Fixture assignment removed", description: "This store-level exception does not change assignments at other stores." });
+  };
+
+  const applyBulkAssignments = () => {
+    if (!bulkFixtureCodes.length || !bulkEligibleStores.length) return;
+    const ruleId = `bulk-${Date.now()}`;
+    const created = bulkPreview.reduce((total, item) => total + item.addable.length, 0);
+    const duplicateCount = bulkPreview.reduce((total, item) =>
+      total + item.eligible.filter(fixture => item.activeCodes.has(fixture.code)).length, 0);
+    const overrideCount = bulkPreview.reduce((total, item) => total + item.overrides.length, 0);
+    setInventory(previous => {
+      let next = [...previous];
+      bulkPreview.forEach(({ store, addable }) => {
+        addable.forEach(fixture => {
+          const removed = next.find(row => row.storeId === store.id && row.fixtureCode === fixture.code && row.change === "Removed");
+          if (removed) {
+            next = next.map(row => row.id === removed.id
+              ? { ...row, change: "Added", assignmentSource: "Bulk rule", bulkRuleId: ruleId, quantity: Number(bulkQuantities[fixture.code]) }
+              : row);
+          } else {
+            next.push({
+              id: `${ruleId}-${store.id}-${fixture.code}`,
+              storeId: store.id,
+              fixtureCode: fixture.code,
+              quantity: Number(bulkQuantities[fixture.code]),
+              change: "Added",
+              assignmentSource: "Bulk rule",
+              bulkRuleId: ruleId,
+            });
+          }
+        });
+      });
+      return next;
+    });
+    setBulkConfirmOpen(false);
+    setBulkOpen(false);
+    toast({
+      title: "Bulk fixture assignment applied",
+      description: `${created} assignments added (${bulkTotalUnits} total fixture quantity). ${duplicateCount} existing assignments and ${overrideCount} store overrides were preserved.`,
+    });
+    setBulkFixtureCodes([]);
   };
 
   if (!selectedStore) {
     return (
       <div className="space-y-3">
-        <ScreenHeader title="Store Fixture Assignments" description="Filter the store hierarchy, then open a store to manage its fixture assignments." />
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <ScreenHeader title="Store Fixture Assignments" description="Find stores, review fixture assignments and apply format-eligible fixtures in bulk." />
+          <Button size="sm" onClick={() => setBulkOpen(true)} className="h-9 gap-1.5 bg-primary text-xs hover:bg-primary/90"><Plus className="h-4 w-4" /> Bulk Assign Fixtures</Button>
+        </div>
         <div className="grid items-end gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(120px,1fr))_minmax(190px,1.4fr)_auto]">
           <SelectField label="REGION" value={region} onChange={value => updateHierarchy("region", value)} options={[{ value: "", label: "All regions" }, ...Array.from(new Set(stores.map(store => store.region))).sort().map(value => ({ value, label: value }))]} />
           <SelectField label="PROPERTY" value={property} onChange={value => updateHierarchy("property", value)} options={[{ value: "", label: "All properties" }, ...Array.from(new Set(propertyStores.map(store => store.property))).sort().map(value => ({ value, label: value }))]} />
           <SelectField label="CHANNEL" value={channel} onChange={value => updateHierarchy("channel", value)} options={[{ value: "", label: "All channels" }, ...Array.from(new Set(channelStores.map(store => store.channel))).sort().map(value => ({ value, label: value }))]} />
-          <SelectField label="FORMAT" value={format} onChange={value => updateHierarchy("format", value)} options={[{ value: "", label: "All formats" }, ...Array.from(new Set(formatStores.map(store => store.format))).sort().map(value => ({ value, label: value }))]} />
+          <SelectField label="FORMAT" value={format} onChange={value => updateHierarchy("format", value)} options={[{ value: "", label: "All formats" }, ...storeFormats.map(item => ({ value: item.id, label: item.name }))]} />
           <label className="block">
             <span className="mb-1.5 block text-[11px] font-semibold text-slate-600">SEARCH STORES</span>
             <span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Store number or name" className="h-9 pl-8 text-xs" /></span>
           </label>
           <Button variant="outline" size="sm" onClick={resetFilters} className="h-9 gap-1.5 text-xs"><X className="h-3.5 w-3.5" /> Clear filters</Button>
         </div>
-        <Panel title="Stores" description={`${visibleStores.length} of ${stores.length} stores`}>
+        <Panel title="Stores" description={`${visibleStores.length} matching · ${stores.length} total · ${stores.filter(store => inventory.some(row => row.storeId === store.id && row.change !== "Removed")).length} with fixture assignments`}>
           <Table className="text-xs">
             <TableHeader><TableRow>
               <TableHead className="h-9 px-3 text-[10px] tracking-wide">Store number</TableHead>
@@ -348,6 +477,7 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
               <TableHead className="h-9 px-3 text-[10px] tracking-wide">Property</TableHead>
               <TableHead className="h-9 px-3 text-[10px] tracking-wide">Channel</TableHead>
               <TableHead className="h-9 px-3 text-[10px] tracking-wide">Format</TableHead>
+              <TableHead className="h-9 px-3 text-[10px] tracking-wide">Assignment status</TableHead>
               <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Fixtures</TableHead>
               <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Total fixture EFT</TableHead>
               <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Action</TableHead>
@@ -356,22 +486,110 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
               {visibleStores.map(store => {
                 const assignments = inventory.filter(row => row.storeId === store.id && row.change !== "Removed");
                 const fixtureCount = assignments.reduce((total, row) => total + row.quantity, 0);
+                const storeFormatName = storeFormats.find(item => item.id === store.storeFormatId)?.name ?? "Unknown format";
                 return <TableRow key={store.id} className="hover:bg-slate-50">
                   <TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{store.id}</TableCell>
                   <TableCell className="px-3 py-2 font-medium text-slate-800">{store.name}</TableCell>
                   <TableCell className="px-3 py-2 text-slate-600">{store.region}</TableCell>
                   <TableCell className="px-3 py-2 text-slate-600">{store.property}</TableCell>
                   <TableCell className="px-3 py-2 text-slate-600">{store.channel}</TableCell>
-                  <TableCell className="px-3 py-2 text-slate-600">{store.format}</TableCell>
+                  <TableCell className="px-3 py-2 text-slate-600">{storeFormatName}</TableCell>
+                  <TableCell className="px-3 py-2">{assignments.length ? <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Assigned</Badge> : <Badge variant="outline">Unassigned</Badge>}</TableCell>
                   <TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{formatNumber(fixtureCount)}</TableCell>
                   <TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{assignedEft(assignments).toFixed(1)} EFT</TableCell>
                   <TableCell className="px-3 py-2 text-right"><Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-[10px] text-primary" onClick={() => setStoreId(store.id)}>View Fixtures <ArrowRight className="h-3 w-3" /></Button></TableCell>
                 </TableRow>;
               })}
-              {!visibleStores.length && <TableRow><TableCell colSpan={9} className="h-16 text-center text-xs text-slate-500">No stores match these filters. Try changing or clearing your selections.</TableCell></TableRow>}
+              {!visibleStores.length && <TableRow><TableCell colSpan={10} className="h-16 text-center text-xs text-slate-500">No stores match these filters. Try changing or clearing your selections.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </Panel>
+        <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+          <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Bulk Assign Fixtures</DialogTitle>
+              <DialogDescription className="text-xs">Choose catalogue definitions and target stores. Format restrictions, duplicates and store-level exceptions are checked before applying.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 lg:grid-cols-[minmax(280px,0.9fr)_minmax(420px,1.5fr)]">
+              <section className="space-y-3">
+                <div>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">1 · Fixture definitions</h3>
+                  <div className="mt-2 max-h-72 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-2">
+                    {fixtureList.map(fixture => <div key={fixture.code} className="flex items-center gap-2 rounded p-1.5 hover:bg-slate-50">
+                      <Checkbox aria-label={`Select ${fixture.name}`} checked={bulkFixtureCodes.includes(fixture.code)} onCheckedChange={checked => {
+                        setBulkFixtureCodes(previous => checked
+                          ? [...previous, fixture.code]
+                          : previous.filter(code => code !== fixture.code));
+                        if (checked) setBulkQuantities(previous => ({ ...previous, [fixture.code]: previous[fixture.code] ?? "" }));
+                      }} />
+                      <FixturePhoto src={fixture.imageUrl} alt={`${fixture.name} fixture photo`} className="h-9 w-12 shrink-0" />
+                      <span className="min-w-0 flex-1 text-[11px]"><span className="block truncate font-medium text-slate-800">{fixture.name}</span><span className="font-mono text-[10px] text-primary">{fixture.code}</span></span>
+                      {bulkFixtureCodes.includes(fixture.code) && <label className="text-[9px] text-slate-500">Qty <Input type="number" min="1" step="1" value={bulkQuantities[fixture.code] ?? ""} onChange={event => setBulkQuantities(previous => ({ ...previous, [fixture.code]: event.target.value }))} className="mt-0.5 h-7 w-16 text-center text-[10px]" /></label>}
+                    </div>)}
+                  </div>
+                  {bulkFixtureCodes.length > 0 && !bulkQuantitiesValid && <p className="mt-1 text-[10px] text-amber-700">Enter a whole quantity of at least 1 for every selected fixture definition.</p>}
+                </div>
+                <div>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">2 · Target store criteria</h3>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <SelectField label="FORMAT" value={bulkFormat} onChange={setBulkFormat} options={[{ value: "", label: "All formats" }, ...storeFormats.map(item => ({ value: item.id, label: item.name }))]} />
+                    <SelectField label="REGION" value={bulkRegion} onChange={setBulkRegion} options={[{ value: "", label: "All regions" }, ...Array.from(new Set(stores.map(store => store.region))).sort().map(value => ({ value, label: value }))]} />
+                    <SelectField label="PROPERTY" value={bulkProperty} onChange={setBulkProperty} options={[{ value: "", label: "All properties" }, ...Array.from(new Set(stores.map(store => store.property))).sort().map(value => ({ value, label: value }))]} />
+                    <SelectField label="CHANNEL" value={bulkChannel} onChange={setBulkChannel} options={[{ value: "", label: "All channels" }, ...Array.from(new Set(stores.map(store => store.channel))).sort().map(value => ({ value, label: value }))]} />
+                  </div>
+                </div>
+              </section>
+              <section className="min-w-0">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">3 · Review matching stores</h3>
+                <div className="mt-2 mb-2 flex flex-wrap gap-2 text-[10px]">
+                  <Badge variant="outline">{bulkTargetStores.length} matching stores</Badge>
+                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">{bulkEligibleStores.length} with eligible fixtures</Badge>
+                  <Badge variant="outline">{bulkPreview.reduce((count, item) => count + item.addable.length, 0)} new assignments</Badge>
+                  {bulkExcludedStores.length > 0 && <Badge className="bg-amber-50 text-amber-800 hover:bg-amber-50">{bulkExcludedStores.length} with format exclusions</Badge>}
+                </div>
+                <div className="max-h-[28rem] overflow-auto rounded-md border border-slate-200">
+                  <Table className="text-xs">
+                    <TableHeader><TableRow>
+                      <TableHead className="h-8 px-2 text-[10px]">Store</TableHead>
+                      <TableHead className="h-8 px-2 text-[10px]">Format</TableHead>
+                      <TableHead className="h-8 px-2 text-[10px]">Eligible / excluded</TableHead>
+                      <TableHead className="h-8 px-2 text-[10px]">Existing / exceptions</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>{bulkPreview.map(({ store, eligible, excluded, overrides, activeCodes, addable }) => <TableRow key={store.id}>
+                      <TableCell className="whitespace-nowrap px-2 py-1.5"><span className="font-mono text-primary">{store.id}</span><span className="ml-1 text-slate-700">{store.name}</span></TableCell>
+                      <TableCell className="whitespace-nowrap px-2 py-1.5 text-[10px] text-slate-600">{storeFormats.find(item => item.id === store.storeFormatId)?.name ?? "Unknown"}</TableCell>
+                      <TableCell className="px-2 py-1.5 text-[10px]">
+                        {bulkFixtureCodes.length ? <><span className="text-emerald-700">{eligible.length} eligible</span>{excluded.length > 0 && <span className="ml-1 text-amber-700" title={excluded.map(item => item.name).join(", ")}>· {excluded.length} excluded</span>}</> : <span className="text-slate-400">Select fixtures</span>}
+                      </TableCell>
+                      <TableCell className="px-2 py-1.5 text-[10px]">
+                        {bulkFixtureCodes.length ? <><span>{eligible.filter(item => activeCodes.has(item.code)).length} already assigned</span>{overrides.length > 0 && <span className="ml-1 font-medium text-amber-700" title={overrides.map(item => `${item.fixtureCode}: ${item.change}`).join(", ")}>· {overrides.length} overrides preserved</span>}</> : <span className="text-slate-400">—</span>}
+                      </TableCell>
+                    </TableRow>)}
+                    {!bulkPreview.length && <TableRow><TableCell colSpan={4} className="h-16 text-center text-xs text-slate-500">No stores match these criteria.</TableCell></TableRow>}
+                    </TableBody>
+                  </Table>
+                </div>
+                {bulkExcludedStores.length > 0 && <p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-900">Stores in the preview remain visible, but fixtures outside their applicable format are excluded and will not be assigned.</p>}
+                {bulkOverrideCount > 0 && <p className="mt-2 rounded border border-blue-200 bg-blue-50 p-2 text-[10px] text-blue-900">Matching store-level overrides are preserved. Bulk assignments do not replace or reactivate those exceptions.</p>}
+              </section>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setBulkOpen(false)}>Cancel</Button>
+              <Button size="sm" disabled={!bulkQuantitiesValid || !bulkPreview.some(item => item.addable.length > 0)} onClick={() => setBulkConfirmOpen(true)} className="bg-primary hover:bg-primary/90">Review and confirm</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Apply bulk fixture assignments?</AlertDialogTitle>
+              <AlertDialogDescription className="text-xs">
+                Add {bulkPreview.reduce((total, item) => total + item.addable.length, 0)} eligible fixture assignments ({bulkTotalUnits} total fixture quantity) across {bulkPreview.filter(item => item.addable.length > 0).length} stores. Ineligible formats, duplicates, and {bulkOverrideCount} store-level overrides will be left unchanged.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel>Go back</AlertDialogCancel><AlertDialogAction onClick={applyBulkAssignments} className="bg-primary text-white hover:bg-primary/90">Apply assignments</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
@@ -381,21 +599,21 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <button type="button" onClick={() => setStoreId(null)} className="mb-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"><ChevronRight className="h-3 w-3 rotate-180" /> Store Fixture Assignments</button>
-          <ScreenHeader title={`Store ${selectedStore.id} — ${selectedStore.name}`} description={`${selectedStore.region} · ${selectedStore.property} · ${selectedStore.channel} · ${selectedStore.format}`} />
+          <ScreenHeader title={`Store ${selectedStore.id} — ${selectedStore.name}`} description={`${selectedStore.region} · ${selectedStore.property} · ${selectedStore.channel} · ${storeFormats.find(item => item.id === selectedStore.storeFormatId)?.name ?? "Unknown format"}`} />
         </div>
-        <Button size="sm" onClick={() => { setEditingAssignmentId(null); setQuantity("1"); setAddOpen(true); }} className="h-9 gap-1.5 bg-primary text-xs hover:bg-primary/90"><Plus className="h-4 w-4" /> Add Fixture</Button>
+        <Button size="sm" onClick={() => { const firstEligible = eligibleFixtures[0]; setEditingAssignmentId(null); setQuantity("1"); setFixtureType(firstEligible?.type ?? ""); setFixtureCode(firstEligible?.code ?? ""); setAddOpen(true); }} className="h-9 gap-1.5 bg-primary text-xs hover:bg-primary/90"><Plus className="h-4 w-4" /> Add Fixture</Button>
       </div>
 
       <Panel title="Fixture assignments" description={`${visibleAssignments.reduce((total, row) => total + row.quantity, 0)} fixture instances · ${selectedBlockId ? "EFT reflects allocation to the selected block" : "EFT reflects total physical fixture area"}`} right={<SelectField label="MERCHANDISING BLOCK" value={selectedBlockId} onChange={setSelectedBlockId} options={[{ value: "", label: "All merchandising blocks" }, ...blocks.map(block => ({ value: block.id, label: block.name }))]} className="w-52" />}>
         <Table className="text-xs">
           <TableHeader><TableRow>
-            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture type</TableHead>
-            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture subtype</TableHead>
-            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture code</TableHead>
+            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture</TableHead>
+            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Type / subtype</TableHead>
+            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Dimensions</TableHead>
             <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Quantity</TableHead>
             <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Physical EFT / fixture</TableHead>
             <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">{selectedBlockId ? `EFT · ${blocks.find(block => block.id === selectedBlockId)?.name ?? "selected block"}` : "Total physical EFT"}</TableHead>
-            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Status</TableHead>
+            <TableHead className="h-9 px-3 text-[10px] tracking-wide">Assignment status / source</TableHead>
             <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Actions</TableHead>
           </TableRow></TableHeader>
           <TableBody>
@@ -404,16 +622,25 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
               if (!fixture) return null;
               const totalEft = fixture.eft * row.quantity * (selectedBlockId ? getBlockShare(row.fixtureCode, selectedBlockId) : 1);
               return <TableRow key={row.id}>
-                <TableCell className="px-3 py-2 text-slate-700">{fixture.type}</TableCell>
-                <TableCell className="px-3 py-2 font-medium text-slate-800">{fixture.subtype || fixture.name}</TableCell>
-                <TableCell className="px-3 py-2 font-mono text-[11px] text-primary">{fixture.code}</TableCell>
+                <TableCell className="px-3 py-2">
+                  <div className="flex min-w-40 items-center gap-2">
+                    <FixturePhoto src={fixture.imageUrl} alt={`${fixture.name} fixture photo`} className="h-10 w-14 shrink-0" />
+                    <span><span className="block font-medium text-slate-800">{fixture.name}</span><span className="font-mono text-[10px] text-primary">{fixture.code}</span></span>
+                  </div>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-slate-700"><span className="block">{fixture.type}</span><span className="text-[10px] text-slate-500">{fixture.subtype || "—"}</span></TableCell>
+                <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] text-slate-600">{fixture.dimensions || "—"}</TableCell>
                 <TableCell className="px-3 py-2 text-right"><Input type="number" min="1" step="1" value={row.quantity} onChange={event => {
                   const nextQuantity = Math.max(1, Math.floor(Number(event.target.value) || 1));
-                  setInventory(previous => previous.map(item => item.id === row.id ? { ...item, quantity: nextQuantity, change: item.change === "Existing" ? "Added" : item.change } : item));
+                  setInventory(previous => previous.map(item => item.id === row.id ? { ...item, quantity: nextQuantity, change: "Added", assignmentSource: "Store override" } : item));
                 }} className="ml-auto h-7 w-16 text-center text-xs" aria-label={`Quantity of ${fixture.name} at Store ${selectedStore.id}`} /></TableCell>
                 <TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft.toFixed(1)} EFT</TableCell>
                 <TableCell className="px-3 py-2 text-right tabular-nums font-medium text-slate-800">{totalEft.toFixed(1)} EFT</TableCell>
-                <TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell>
+                <TableCell className="px-3 py-2">
+                  <Badge variant="outline">{row.change}</Badge>
+                  <span className={`mt-1 block text-[9px] ${row.assignmentSource === "Store override" ? "font-medium text-amber-700" : row.assignmentSource === "Bulk rule" ? "text-primary" : "text-slate-500"}`}>{row.assignmentSource ?? "Existing store data"}{row.bulkRuleId && row.assignmentSource === "Store override" ? " · exception" : ""}</span>
+                  <span className="mt-0.5 block text-[9px] text-slate-400">Definition: {fixture.status}</span>
+                </TableCell>
                 <TableCell className="px-3 py-2 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => openEditAssignment(row)} className="h-7 gap-1 px-2 text-[10px] text-primary hover:text-primary">Edit</Button><Button variant="ghost" size="sm" onClick={() => setRemoveId(row.id)} className="h-7 gap-1 px-2 text-[10px] text-slate-500 hover:text-slate-700"><Trash2 className="h-3.5 w-3.5" /> Remove</Button></div></TableCell>
               </TableRow>;
             })}
@@ -428,23 +655,28 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
           <div className="grid gap-3 sm:grid-cols-2">
             <SelectField label="FIXTURE TYPE" value={fixtureType} onChange={value => {
               setFixtureType(value);
-              setFixtureCode(fixtureList.find(fixture => fixture.type === value)?.code ?? "");
+              setFixtureCode(eligibleFixtures.find(fixture => fixture.type === value)?.code ?? "");
             }} options={availableTypes.map(value => ({ value, label: value }))} />
             <SelectField label="FIXTURE SUBTYPE / DEFINITION" value={selectedFixture?.code ?? ""} onChange={setFixtureCode} options={fixturesOfType.map(fixture => ({ value: fixture.code, label: `${fixture.subtype || fixture.name} · ${fixture.code}` }))} />
             <label><span className="mb-1.5 block text-[11px] font-semibold text-slate-600">QUANTITY</span><Input type="number" min="1" step="1" value={quantity} onChange={event => setQuantity(event.target.value)} className="h-9 text-xs" /></label>
           </div>
-          {selectedFixture && <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+          {selectedFixture && <div className="flex gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+            <FixturePhoto src={selectedFixture.imageUrl} alt={`${selectedFixture.name} fixture photo`} className="h-20 w-28 shrink-0" />
+            <div className="min-w-0">
             <p className="text-xs font-semibold text-slate-800">{selectedFixture.name} <span className="font-mono font-normal text-primary">{selectedFixture.code}</span></p>
-            <p className="mt-1 text-[10px] text-slate-600">Dimensions: {selectedFixture.dimensions || "Not specified"} · EFT per fixture: {selectedFixture.eft.toFixed(1)} · Status: {selectedFixture.status}</p>
+            <p className="mt-1 text-[10px] text-slate-600">{selectedFixture.type} · {selectedFixture.subtype || "No subtype"} · {selectedFixture.dimensions || "Dimensions not specified"} · {selectedFixture.eft.toFixed(1)} EFT</p>
+            <p className="mt-1 text-[10px] text-slate-600">Eligible for {storeFormats.find(item => item.id === selectedStore.storeFormatId)?.name ?? "this store format"} · Definition status: {selectedFixture.status}</p>
             <p className="mt-1 text-[10px] text-slate-500">Compatible blocks: {Array.from(new Set(compatibility.filter(rule => rule.fixtureCode === selectedFixture.code).map(rule => blocks.find(block => block.id === rule.blockId)?.name).filter((name): name is string => Boolean(name)))).join(", ") || "No block compatibility configured"}</p>
             <p className="mt-1 text-[10px] text-slate-500">EFT is physical space. Any block-level allocation uses the configured fixture-to-block share.</p>
+            </div>
           </div>}
+          {!eligibleFixtures.length && <p className="text-[11px] text-amber-700">No fixture definitions are eligible for this store format.</p>}
           <DialogFooter><Button variant="outline" size="sm" onClick={() => setAddOpen(false)}>Cancel</Button><Button size="sm" disabled={!selectedFixture} onClick={addFixtureAssignment} className="bg-primary hover:bg-primary/90">{editingAssignmentId ? "Save assignment" : `Add to Store ${selectedStore.id}`}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       <AlertDialog open={Boolean(removeId)} onOpenChange={open => !open && setRemoveId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Remove fixture assignment?</AlertDialogTitle><AlertDialogDescription className="text-xs">This removes the selected fixture assignment from Store {selectedStore.id}. This prototype change is held in frontend state only.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Remove fixture assignment?</AlertDialogTitle><AlertDialogDescription className="text-xs">This creates a store-level removal exception for Store {selectedStore.id}. Other stores and the bulk rule remain unchanged.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Keep assignment</AlertDialogCancel><AlertDialogAction onClick={confirmRemove} className="bg-rose-600 text-white hover:bg-rose-700">Remove assignment</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -453,32 +685,39 @@ function StoreFixtureInventory({ stores, blocks, fixtureList, compatibility, inv
 }
 
 function MerchandisingBlocks({ blocks, setBlocks }: {
-  blocks: PlanningBlock[];
-  setBlocks: React.Dispatch<React.SetStateAction<PlanningBlock[]>>;
+  blocks: Record<string, FormatPlanningBlock[]>;
+  setBlocks: React.Dispatch<React.SetStateAction<Record<string, FormatPlanningBlock[]>>>;
 }) {
   const { toast } = useToast();
+  const [formatId, setFormatId] = useState(storeFormats[0].id);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All statuses");
   const [areaFilter, setAreaFilter] = useState("Any area count");
   const [editor, setEditor] = useState<BlockEditorState>({ open: false });
+  const [viewingBlockId, setViewingBlockId] = useState<string | null>(null);
+  const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [blockStatus, setBlockStatus] = useState<FormatPlanningBlock["status"]>("Draft");
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [areaSearch, setAreaSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [subcategoryFilter, setSubcategoryFilter] = useState("");
   const areaResultLimit = 12;
 
-  const assignedIds = new Set(blocks.flatMap(block => block.areaIds));
-  const filteredBlocks = blocks.filter(block => {
+  const selectedFormat = storeFormats.find(format => format.id === formatId) ?? storeFormats[0];
+  const formatBlocks = blocks[selectedFormat.id] ?? [];
+  const filteredBlocks = formatBlocks.filter(block => {
     const text = `${block.name} ${block.code} ${block.areaIds.map(areaName).join(" ")}`.toLowerCase();
-    if (!text.includes(search.toLowerCase())) return false;
+    if (!text.includes(search.trim().toLowerCase())) return false;
     if (status !== "All statuses" && block.status !== status) return false;
     if (areaFilter === "Single area" && block.areaIds.length !== 1) return false;
     if (areaFilter === "Multiple areas" && block.areaIds.length < 2) return false;
     return true;
   });
-  const editBlock = blocks.find(block => block.id === editor.blockId);
+  const editBlock = formatBlocks.find(block => block.id === editor.blockId);
+  const viewingBlock = formatBlocks.find(block => block.id === viewingBlockId);
+  const deletingBlock = formatBlocks.find(block => block.id === deletingBlockId);
   const subcategories = Array.from(new Set(
     merchAreas.filter(area => area.category === categoryFilter).map(area => area.subcategory),
   )).sort();
@@ -496,10 +735,22 @@ function MerchandisingBlocks({ blocks, setBlocks }: {
       ? `${categoryFilter} · all subcategories`
       : `${categoryFilter} · ${subcategoryFilter}`;
 
-  const openEditor = (block?: PlanningBlock, initialArea?: string) => {
+  const openEditor = (block?: FormatPlanningBlock) => {
     setName(block?.name ?? "");
-    setCode(block?.code ?? `BLK-${String(blocks.length + 1).padStart(3, "0")}`);
-    setSelectedAreas(block ? [...block.areaIds] : initialArea ? [initialArea] : []);
+    if (block) {
+      setCode(block.code);
+    } else {
+      const existingCodes = new Set(formatBlocks.map(item => item.code));
+      let sequence = formatBlocks.length + 1;
+      let nextCode = `MB-${selectedFormat.code}-${String(sequence).padStart(3, "0")}`;
+      while (existingCodes.has(nextCode)) {
+        sequence += 1;
+        nextCode = `MB-${selectedFormat.code}-${String(sequence).padStart(3, "0")}`;
+      }
+      setCode(nextCode);
+    }
+    setBlockStatus(block?.status ?? "Draft");
+    setSelectedAreas(block ? [...block.areaIds] : []);
     setAreaSearch("");
     setCategoryFilter("");
     setSubcategoryFilter("");
@@ -507,41 +758,68 @@ function MerchandisingBlocks({ blocks, setBlocks }: {
   };
 
   const saveBlock = () => {
-    if (!name.trim() || !code.trim()) {
-      toast({ title: "Block details required", description: "Enter a block name and code before saving.", variant: "destructive" });
+    if (!name.trim()) {
+      toast({ title: "Block name required", description: "Enter a block name before saving.", variant: "destructive" });
       return;
     }
     if (!selectedAreas.length) {
       toast({ title: "Select merchandise areas", description: "A block must include at least one merchandise area.", variant: "destructive" });
       return;
     }
-    const id = editor.blockId ?? `block-${Date.now()}`;
-    setBlocks(previous => previous.map(block => ({ ...block, areaIds: block.id !== id ? block.areaIds.filter(area => !selectedAreas.includes(area)) : block.areaIds })));
+    const id = editor.blockId ?? `${selectedFormat.id}-block-${Date.now()}`;
     setBlocks(previous => editor.blockId
-      ? previous.map(block => block.id === id ? { ...block, name: name.trim(), code: code.trim(), areaIds: selectedAreas } : block)
-      : [...previous, { id, name: name.trim(), code: code.trim(), areaIds: selectedAreas, status: "Draft" }]);
+      ? {
+        ...previous,
+        [selectedFormat.id]: (previous[selectedFormat.id] ?? []).map(block => block.id === id
+          ? { ...block, name: name.trim(), areaIds: [...selectedAreas], status: blockStatus }
+          : block),
+      }
+      : {
+        ...previous,
+        [selectedFormat.id]: [...(previous[selectedFormat.id] ?? []), {
+          id,
+          formatId: selectedFormat.id,
+          code,
+          name: name.trim(),
+          areaIds: [...selectedAreas],
+          status: blockStatus,
+        }],
+      });
     setEditor({ open: false });
     toast({ title: editor.blockId ? "Block updated" : "Block created", description: `${name.trim()} now contains ${selectedAreas.length} merchandise area${selectedAreas.length === 1 ? "" : "s"}.` });
+  };
+
+  const confirmDelete = () => {
+    if (!deletingBlock) return;
+    setBlocks(previous => ({
+      ...previous,
+      [selectedFormat.id]: (previous[selectedFormat.id] ?? []).filter(block => block.id !== deletingBlock.id),
+    }));
+    setDeletingBlockId(null);
+    toast({ title: "Block deleted", description: `${deletingBlock.name} was removed from ${selectedFormat.name}.` });
   };
 
   const toggleArea = (id: string) => setSelectedAreas(previous => previous.includes(id) ? previous.filter(areaId => areaId !== id) : [...previous, id]);
   return (
     <>
       <div className="space-y-4">
-        <ScreenHeader title="Merchandising Blocks" right={<Button size="sm" onClick={() => openEditor()} className="h-8 gap-2 bg-primary text-xs hover:bg-primary/90"><Plus className="h-3.5 w-3.5" /> Create block</Button>} />
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-slate-200 pb-3">
-          <Metric compact label="Planning blocks" value={String(blocks.length)} />
-          <Metric compact label="Areas grouped" value={`${assignedIds.size} / ${merchAreas.length}`} />
-          <Metric compact label="Areas ungrouped" value={String(merchAreas.length - assignedIds.size)} />
+        <ScreenHeader title="Merchandising Blocks" description="Manage format-specific merchandising block definitions." />
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-3">
+          <div className="flex flex-wrap items-end gap-4">
+            <SelectField label="STORE FORMAT" value={selectedFormat.id} onChange={value => { setFormatId(value); setSearch(""); setStatus("All statuses"); setAreaFilter("Any area count"); }} options={storeFormats.map(format => ({ value: format.id, label: format.name }))} className="w-72" />
+            <div className="pb-2 text-[11px] text-slate-500">Selected format: <strong className="text-slate-800">{selectedFormat.name}</strong></div>
+            <Metric compact label="Blocks in format" value={String(formatBlocks.length)} />
+          </div>
+          <Button size="sm" onClick={() => openEditor()} className="h-8 gap-2 bg-primary text-xs hover:bg-primary/90"><Plus className="h-3.5 w-3.5" /> New Block</Button>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="min-w-56 flex-1"><span className="mb-1 block text-[10px] font-semibold text-slate-500">SEARCH BLOCKS / AREAS</span><span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Block name, code or merchandise area" className="h-8 pl-8 text-xs" /></span></label>
+          <label className="min-w-56 flex-1"><span className="mb-1 block text-[10px] font-semibold text-slate-500">SEARCH BLOCKS</span><span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Block name or code" className="h-8 pl-8 text-xs" /></span></label>
           <SelectField label="STATUS" value={status} onChange={setStatus} options={["All statuses", "Active", "Draft", "Review"].map(value => ({ value, label: value }))} className="w-40" />
           <SelectField label="AREA MEMBERSHIP" value={areaFilter} onChange={setAreaFilter} options={["Any area count", "Single area", "Multiple areas"].map(value => ({ value, label: value }))} className="w-44" />
         </div>
-        <Panel title="Block register">
+        <Panel title={`${selectedFormat.name} · Block library`} description={`${filteredBlocks.length} of ${formatBlocks.length} blocks`}>
           <Table className="text-xs">
-            <TableHeader><TableRow><TableHead className="h-9 px-3 text-[10px] tracking-wide">Block code</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Block name</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Associated merchandise areas</TableHead><TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Area count</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Status</TableHead><TableHead className="h-9 w-16 px-2 text-right text-[10px] tracking-wide">Actions</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead className="h-9 px-3 text-[10px] tracking-wide">Block code</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Block name</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Merchandise areas</TableHead><TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Area count</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Status</TableHead><TableHead className="h-9 w-28 px-2 text-right text-[10px] tracking-wide">Actions</TableHead></TableRow></TableHeader>
             <TableBody>
               {filteredBlocks.map(block => <TableRow key={block.id}>
                 <TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{block.code}</TableCell>
@@ -549,9 +827,13 @@ function MerchandisingBlocks({ blocks, setBlocks }: {
                 <TableCell className="px-3 py-2"><div className="flex max-h-20 max-w-xl flex-wrap gap-1 overflow-y-auto">{block.areaIds.map(id => <span key={id} className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-600">{areaName(id)}</span>)}</div></TableCell>
                 <TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{block.areaIds.length}</TableCell>
                 <TableCell className="px-3 py-2"><Status value={block.status} /></TableCell>
-                <TableCell className="px-2 py-2 text-right"><Button variant="ghost" size="sm" onClick={() => openEditor(block)} className="h-6 px-1.5 text-[11px] text-primary">Edit</Button></TableCell>
+                <TableCell className="px-2 py-2 text-right">
+                  <Button variant="ghost" size="sm" aria-label={`View ${block.name}`} onClick={() => setViewingBlockId(block.id)} className="h-7 w-7 p-0 text-slate-500"><Eye className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => openEditor(block)} className="h-7 px-1.5 text-[11px] text-primary">Edit</Button>
+                  <Button variant="ghost" size="sm" aria-label={`Delete ${block.name}`} onClick={() => setDeletingBlockId(block.id)} className="h-7 w-7 p-0 text-rose-600"><Trash2 className="h-3.5 w-3.5" /></Button>
+                </TableCell>
               </TableRow>)}
-              {!filteredBlocks.length && <TableRow><TableCell colSpan={6} className="h-16 px-3 py-2 text-center text-xs text-slate-500">No blocks match the selected filters.</TableCell></TableRow>}
+              {!filteredBlocks.length && <TableRow><TableCell colSpan={6} className="h-16 px-3 py-2 text-center text-xs text-slate-500">{formatBlocks.length ? "No blocks match the selected filters." : `No merchandising blocks are defined for ${selectedFormat.name}.`}</TableCell></TableRow>}
             </TableBody>
           </Table>
         </Panel>
@@ -560,14 +842,16 @@ function MerchandisingBlocks({ blocks, setBlocks }: {
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-hidden p-0">
           <DialogHeader className="border-b border-slate-200 px-5 py-4">
             <DialogTitle className="text-base">{editBlock ? "Edit merchandising block" : "Create merchandising block"}</DialogTitle>
-            <DialogDescription className="text-xs">Search and select merchandise areas to define this block. Each area can belong to one block.</DialogDescription>
+            <DialogDescription className="text-xs">This definition belongs to {selectedFormat.name}. Add any combination of merchandise areas.</DialogDescription>
           </DialogHeader>
           <div className="grid max-h-[66vh] gap-0 overflow-hidden md:grid-cols-[1.25fr_0.75fr]">
             <div className="space-y-3 overflow-y-auto p-5">
               <div className="grid gap-3 sm:grid-cols-2">
-                <label><span className="mb-1 block text-[11px] font-semibold text-slate-600">Block name</span><Input value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Beverage Block" className="h-9 text-xs" /></label>
-                <label><span className="mb-1 block text-[11px] font-semibold text-slate-600">Block code</span><Input value={code} onChange={event => setCode(event.target.value)} className="h-9 font-mono text-xs" /></label>
+                <label><span className="mb-1 block text-[11px] font-semibold text-slate-600">Store format</span><Input value={selectedFormat.name} readOnly className="h-9 bg-slate-50 text-xs" /></label>
+                <label><span className="mb-1 block text-[11px] font-semibold text-slate-600">Block code</span><Input value={code} readOnly className="h-9 bg-slate-50 font-mono text-xs" /></label>
               </div>
+              <label className="block"><span className="mb-1 block text-[11px] font-semibold text-slate-600">Block name</span><Input value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Beverage Block" className="h-9 text-xs" /></label>
+              <SelectField label="STATUS" value={blockStatus} onChange={value => setBlockStatus(value as FormatPlanningBlock["status"])} options={["Active", "Draft", "Review"].map(value => ({ value, label: value }))} />
               <label className="block"><span className="mb-1 block text-[10px] font-semibold text-slate-500">SEARCH MERCHANDISE AREA NAME OR CODE</span><span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={areaSearch} onChange={event => setAreaSearch(event.target.value)} placeholder={`Search ${merchAreas.length} areas...`} className="h-8 pl-8 text-xs" /></span></label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <SelectField label="CATEGORY" value={categoryFilter} onChange={value => { setCategoryFilter(value); setSubcategoryFilter(""); }} options={[{ value: "", label: "All categories" }, ...merchAreaCategories.map(value => ({ value, label: value }))]} />
@@ -577,14 +861,12 @@ function MerchandisingBlocks({ blocks, setBlocks }: {
               {shouldShowAreaResults ? <div className="overflow-hidden rounded-md border border-slate-200" aria-label={`${areaResults.length} merchandise area results`}>
                 <div className="max-h-64 overflow-auto">
                   {visibleAreaResults.map(area => {
-                    const owner = blocks.find(block => block.id !== editor.blockId && block.areaIds.includes(area.id));
-                    return <label key={area.id} className={`flex items-center gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0 ${owner ? "cursor-not-allowed bg-slate-50/70" : "cursor-pointer hover:bg-slate-50"}`}>
-                      <Checkbox checked={selectedAreas.includes(area.id)} disabled={Boolean(owner)} onCheckedChange={() => toggleArea(area.id)} />
+                    return <label key={area.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0 hover:bg-slate-50">
+                      <Checkbox checked={selectedAreas.includes(area.id)} onCheckedChange={() => toggleArea(area.id)} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-medium text-slate-700">{area.name} <span className="font-mono text-[10px] font-normal text-slate-400">{area.code}</span></span>
                         <span className="block truncate text-[10px] text-slate-400">{area.category} / {area.subcategory}</span>
                       </span>
-                      {owner && <span className="shrink-0 text-[10px] text-slate-500">In {owner.name}</span>}
                     </label>;
                   })}
                   {!areaResults.length && <p className="p-5 text-center text-xs text-slate-500">No merchandise areas match this search and hierarchy.</p>}
@@ -615,6 +897,39 @@ function MerchandisingBlocks({ blocks, setBlocks }: {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={Boolean(viewingBlock)} onOpenChange={open => !open && setViewingBlockId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">{viewingBlock?.name}</DialogTitle>
+            <DialogDescription className="text-xs">Format-specific block definition</DialogDescription>
+          </DialogHeader>
+          {viewingBlock && <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div><p className="text-[10px] font-semibold uppercase text-slate-500">Store format</p><p className="mt-1 font-medium text-slate-800">{selectedFormat.name}</p></div>
+              <div><p className="text-[10px] font-semibold uppercase text-slate-500">Block code</p><p className="mt-1 font-mono text-primary">{viewingBlock.code}</p></div>
+              <div><p className="text-[10px] font-semibold uppercase text-slate-500">Status</p><div className="mt-1"><Status value={viewingBlock.status} /></div></div>
+              <div><p className="text-[10px] font-semibold uppercase text-slate-500">Merchandise areas</p><p className="mt-1 font-medium text-slate-800">{viewingBlock.areaIds.length}</p></div>
+            </div>
+            <div className="border-t border-slate-100 pt-3">
+              <p className="mb-2 text-[10px] font-semibold uppercase text-slate-500">Associated merchandise areas</p>
+              <div className="flex flex-wrap gap-1.5">{viewingBlock.areaIds.map(id => <span key={id} className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] text-slate-700">{areaName(id)}</span>)}</div>
+            </div>
+          </div>}
+          <DialogFooter><Button variant="outline" size="sm" onClick={() => setViewingBlockId(null)}>Close</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={Boolean(deletingBlock)} onOpenChange={open => !open && setDeletingBlockId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete merchandising block?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">This removes {deletingBlock?.name} from {selectedFormat.name} only. Definitions in other store formats are unchanged.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-rose-600 text-white hover:bg-rose-700">Delete block</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -704,7 +1019,7 @@ function BlockCompatibility({ blocks, fixtureList, compatibility, setCompatibili
   </TableRow></TableHeader>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <ScreenHeader title="Block Compatibility & Capacity" description="Review fixture relationships by merchandising block or fixture. Facing slots are sample values; EFT is physical space." />
       <div role="group" aria-label="Relationship view" className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
         <button type="button" aria-pressed={view === "block"} onClick={() => { setView("block"); setFixtureTypeFilter(""); setStatusFilter("All"); setQuery(""); setFixtureSearch(""); setBlockSearch(""); }} className={`rounded px-3 py-1.5 text-[11px] font-medium ${view === "block" ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>By Merchandising Block</button>
@@ -750,7 +1065,87 @@ function BlockCompatibility({ blocks, fixtureList, compatibility, setCompatibili
   );
 }
 
-function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setFixtureTypes, compatibility, inventory, setInventory, setCompatFixture }: {
+function FixturePhoto({ src, alt, className }: { src?: string; alt: string; className: string }) {
+  return src
+    ? <img src={src} alt={alt} className={`${className} rounded border border-slate-200 bg-white object-cover`} />
+    : <div role="img" aria-label={alt || "No fixture photo uploaded"} className={`${className} flex items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-slate-400`}>
+      <ImageIcon className="h-4 w-4" />
+    </div>;
+}
+
+function FixtureAppearanceFields({ imageUrl, required, applicableFormatIds, onImageChange, onFormatsChange }: {
+  imageUrl?: string;
+  required: boolean;
+  applicableFormatIds?: string[];
+  onImageChange: (imageUrl: string) => void;
+  onFormatsChange: (formatIds: string[]) => void;
+}) {
+  const { toast } = useToast();
+  const selectedFormats = applicableFormatIds ?? storeFormats.map(format => format.id);
+  const allSelected = selectedFormats.length === storeFormats.length;
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast({ title: "Unsupported image type", description: "Choose a JPG, PNG, or WebP photo.", variant: "destructive" });
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image is too large", description: "Choose a photo no larger than 5 MB.", variant: "destructive" });
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        toast({ title: "Could not read image", description: "Please choose the photo again.", variant: "destructive" });
+        return;
+      }
+      onImageChange(reader.result);
+    };
+    reader.onerror = () => toast({ title: "Could not read image", description: "Please choose the photo again.", variant: "destructive" });
+    reader.readAsDataURL(file);
+  };
+  const toggleFormat = (formatId: string) => {
+    onFormatsChange(selectedFormats.includes(formatId)
+      ? selectedFormats.filter(id => id !== formatId)
+      : [...selectedFormats, formatId]);
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/70 p-3 sm:col-span-2">
+        <FixturePhoto src={imageUrl} alt={imageUrl ? "Uploaded fixture photo preview" : "No fixture photo uploaded"} className="h-20 w-28 shrink-0" />
+        <label className="min-w-0 flex-1">
+          <span className="mb-1 block text-[11px] font-semibold text-slate-600">Upload actual fixture photo{required ? <span className="text-rose-600"> · Required</span> : ""}</span>
+          <span className="relative flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs text-slate-700 hover:border-primary">
+            <Upload className="h-3.5 w-3.5 text-primary" />
+            {imageUrl ? "Replace photo" : "Choose photo"}
+            <input type="file" accept="image/jpeg,image/png,image/webp" required={required} onChange={onFileChange} aria-label="Upload actual fixture photo" className="absolute inset-0 cursor-pointer opacity-0" />
+          </span>
+          <span className="mt-1 block text-[10px] text-slate-500">JPG, PNG or WebP · up to 5 MB. Uploaded in this session only.</span>
+        </label>
+      </div>
+      <fieldset className="rounded-md border border-slate-200 p-3 sm:col-span-2">
+        <legend className="px-1 text-[11px] font-semibold text-slate-600">Applicable Store Formats</legend>
+        <label className="mb-2 flex cursor-pointer items-center gap-2 border-b border-slate-100 pb-2 text-[11px] font-medium text-slate-800">
+          <Checkbox checked={allSelected} onCheckedChange={checked => onFormatsChange(checked ? storeFormats.map(format => format.id) : [])} />
+          All formats
+        </label>
+        <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+          {storeFormats.map(format => <label key={format.id} className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-600">
+            <Checkbox checked={selectedFormats.includes(format.id)} onCheckedChange={() => toggleFormat(format.id)} />
+            {format.name}
+          </label>)}
+        </div>
+        {!selectedFormats.length && <p className="mt-2 text-[10px] text-amber-700">Select at least one format to make this fixture applicable.</p>}
+      </fieldset>
+    </>
+  );
+}
+
+function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setFixtureTypes, compatibility, inventory, setInventory, stores, setCompatFixture }: {
   blocks: PlanningBlock[];
   fixtureList: Fixture[];
   setFixtureList: React.Dispatch<React.SetStateAction<Fixture[]>>;
@@ -759,6 +1154,7 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
   compatibility: FixtureCompatibility[];
   inventory: StoreInventory[];
   setInventory: React.Dispatch<React.SetStateAction<StoreInventory[]>>;
+  stores: PlanningStore[];
   setCompatFixture: (code: string) => void;
 }) {
   const { toast } = useToast();
@@ -767,10 +1163,12 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
   const [catalogView, setCatalogView] = useState<"hierarchy" | "list">("hierarchy");
   const [fixtureTypeFilter, setFixtureTypeFilter] = useState("All fixture types");
   const [fixtureStatusFilter, setFixtureStatusFilter] = useState("All statuses");
+  const [fixtureFormatFilter, setFixtureFormatFilter] = useState("All formats");
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(initialFixtureTypes.map(type => type.id)));
   const [sortBy, setSortBy] = useState<"code" | "name" | "type" | "dimensions" | "eft" | "status">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [addFixtureOpen, setAddFixtureOpen] = useState(false);
+  const [viewingFixtureCode, setViewingFixtureCode] = useState<string | null>(null);
   const [editor, setEditor] = useState<
     | { kind: "type"; typeId?: string; name: string; status: FixtureType["status"]; mode: "group" | "standalone"; standalone: Fixture }
     | { kind: "fixture"; fixture: Fixture; isNew: boolean }
@@ -780,6 +1178,18 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
   const [inventoryStoreId, setInventoryStoreId] = useState<string | null>(null);
 
   const selectedFixtureRow = fixtureList.find(fixture => fixture.code === selectedFixture);
+  const viewingFixture = fixtureList.find(fixture => fixture.code === viewingFixtureCode);
+  const allFormatIds = storeFormats.map(format => format.id);
+  const applicableFormats = (fixture: Fixture) => fixture.applicableFormatIds ?? allFormatIds;
+  const imageCreditFor = (imageUrl?: string) => imageUrl ? fixtureImageCredits[imageUrl] : undefined;
+  const viewingImageCredit = imageCreditFor(viewingFixture?.imageUrl);
+  const formatSummary = (fixture: Fixture) => {
+    const formatIds = applicableFormats(fixture);
+    if (formatIds.length === allFormatIds.length) return "All formats";
+    if (formatIds.length <= 2) return formatIds.map(id => storeFormats.find(format => format.id === id)?.name ?? id).join(", ");
+    return `${formatIds.length} formats`;
+  };
+  const hasSelectedFormat = (fixture: Fixture) => fixtureFormatFilter === "All formats" || applicableFormats(fixture).includes(fixtureFormatFilter);
   const tabList = [
     ["catalog", "Fixture Catalogue"],
     ["inventory", "Store Fixture Assignments"],
@@ -789,7 +1199,8 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
   const matchesFixtureQuery = (fixture: Fixture) => `${fixture.code} ${fixture.name} ${fixture.type} ${fixture.subtype}`.toLowerCase().includes(normalizedQuery);
   const matchesFixtureFilters = (fixture: Fixture) =>
     (fixtureTypeFilter === "All fixture types" || fixture.type === fixtureTypeFilter)
-    && (fixtureStatusFilter === "All statuses" || fixture.status === fixtureStatusFilter);
+    && (fixtureStatusFilter === "All statuses" || fixture.status === fixtureStatusFilter)
+    && hasSelectedFormat(fixture);
   const filteredFixtures = fixtureList.filter(fixture => matchesFixtureFilters(fixture) && matchesFixtureQuery(fixture)).slice().sort((first, second) => {
     const comparison = sortBy === "eft"
       ? first.eft - second.eft
@@ -805,7 +1216,7 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
     return { type, children, visibleChildren, typeMatchesQuery };
   }).filter(group =>
     (fixtureTypeFilter === "All fixture types" || group.type.name === fixtureTypeFilter)
-    && (group.visibleChildren.length > 0 || Boolean(normalizedQuery && group.typeMatchesQuery) || (!normalizedQuery && fixtureStatusFilter === "All statuses")));
+    && (group.visibleChildren.length > 0 || Boolean(normalizedQuery && group.typeMatchesQuery) || (!normalizedQuery && fixtureStatusFilter === "All statuses" && fixtureFormatFilter === "All formats")));
   const standaloneFixtures = fixtureList.filter(fixture => !fixture.parentTypeId && matchesFixtureFilters(fixture) && matchesFixtureQuery(fixture));
   const openTypeEditor = (mode: "group" | "standalone", type?: FixtureType) => {
     setAddFixtureOpen(false);
@@ -815,12 +1226,19 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
       name: type?.name ?? "",
       status: type?.status ?? "Active",
       mode,
-      standalone: { code: "", name: "", type: "", subtype: "", dimensions: "", eft: 0, status: "Active" },
+      standalone: { code: "", name: "", type: "", subtype: "", dimensions: "", eft: 0, status: "Active", applicableFormatIds: [...allFormatIds] },
     });
   };
   const openFixtureEditor = (fixture: Fixture, isNew: boolean) => {
     setAddFixtureOpen(false);
-    setEditor({ kind: "fixture", fixture: { ...fixture }, isNew });
+    setEditor({
+      kind: "fixture",
+      fixture: {
+        ...fixture,
+        applicableFormatIds: [...applicableFormats(fixture)],
+      },
+      isNew,
+    });
   };
   const saveFixture = () => {
     if (!editor) return;
@@ -831,9 +1249,13 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
         return;
       }
       if (editor.mode === "standalone") {
-        const fixture = { ...editor.standalone, name, type: name, subtype: "" };
+        const fixture = { ...editor.standalone, name, type: name, subtype: "", applicableFormatIds: editor.standalone.applicableFormatIds ?? [...allFormatIds] };
         if (!fixture.code.trim()) {
           toast({ title: "Fixture code is required for a standalone definition", variant: "destructive" });
+          return;
+        }
+        if (!fixture.imageUrl) {
+          toast({ title: "Fixture photo is required", description: "Upload an actual photo of this fixture before saving.", variant: "destructive" });
           return;
         }
         if (fixtureList.some(existing => existing.code.toLowerCase() === fixture.code.trim().toLowerCase())) {
@@ -842,6 +1264,10 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
         }
         if (!Number.isFinite(fixture.eft) || fixture.eft < 0) {
           toast({ title: "Enter a valid EFT value", variant: "destructive" });
+          return;
+        }
+        if (!fixture.applicableFormatIds.length) {
+          toast({ title: "Select an applicable store format", description: "A fixture must be applicable to at least one store format.", variant: "destructive" });
           return;
         }
         setFixtureList(previous => [...previous, fixture]);
@@ -875,8 +1301,16 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
       toast({ title: "Fixture name and code are required", variant: "destructive" });
       return;
     }
+    if (!fixture.imageUrl) {
+      toast({ title: "Fixture photo is required", description: "Upload an actual photo of this fixture before saving.", variant: "destructive" });
+      return;
+    }
     if (!Number.isFinite(fixture.eft) || fixture.eft < 0) {
       toast({ title: "Enter a valid EFT value", description: "EFT must be zero or greater.", variant: "destructive" });
+      return;
+    }
+    if (!(fixture.applicableFormatIds ?? allFormatIds).length) {
+      toast({ title: "Select an applicable store format", description: "A fixture must be applicable to at least one store format.", variant: "destructive" });
       return;
     }
     if (fixture.parentTypeId && !fixtureTypes.some(type => type.id === fixture.parentTypeId)) {
@@ -893,6 +1327,7 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
       name: fixture.name.trim(),
       type: fixture.parentTypeId ? typeName(fixture.parentTypeId) : fixture.name.trim(),
       subtype: fixture.subtype.trim(),
+      applicableFormatIds: fixture.applicableFormatIds ?? [...allFormatIds],
     };
     setFixtureList(previous => previous.some(item => item.code === savedFixture.code)
       ? previous.map(item => item.code === savedFixture.code ? savedFixture : item)
@@ -922,49 +1357,52 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
             <label className="min-w-56 flex-1"><span className="mb-1 block text-[10px] font-semibold text-slate-500">SEARCH CATALOG</span><span className="relative block"><Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" /><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Fixture type, subtype or code" className="h-8 pl-8 text-xs" /></span></label>
             <SelectField label="FIXTURE TYPE" value={fixtureTypeFilter} onChange={setFixtureTypeFilter} options={[{ value: "All fixture types", label: "All fixture types" }, ...Array.from(new Set([...fixtureTypes.map(type => type.name), ...fixtureList.map(fixture => fixture.type)])).sort().map(value => ({ value, label: value }))]} className="w-44" />
             <SelectField label="STATUS" value={fixtureStatusFilter} onChange={setFixtureStatusFilter} options={["All statuses", "Active", "Review"].map(value => ({ value, label: value }))} className="w-36" />
+            <SelectField label="APPLICABLE FORMAT" value={fixtureFormatFilter} onChange={setFixtureFormatFilter} options={[{ value: "All formats", label: "All formats" }, ...storeFormats.map(format => ({ value: format.id, label: format.name }))]} className="w-52" />
             <span className="pb-2 text-[10px] text-slate-500">{filteredFixtures.length} fixture definitions</span>
           </div>
           {catalogView === "hierarchy" ? <Panel title="Fixture catalogue" description="Types group specific fixture configurations; standalone fixtures remain top-level definitions.">
-            <Table className="text-xs"><TableHeader><TableRow><TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture type / subtype</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture code</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Dimensions</TableHead><TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">EFT</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Status</TableHead><TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Actions</TableHead></TableRow></TableHeader>
+            <Table className="text-xs"><TableHeader><TableRow><TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture type / subtype</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Fixture code</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Dimensions</TableHead><TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">EFT</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Applicable formats</TableHead><TableHead className="h-9 px-3 text-[10px] tracking-wide">Status</TableHead><TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {groupedFixtures.map(({ type, children, visibleChildren, typeMatchesQuery }) => {
                   const expanded = expandedTypes.has(type.id) || Boolean(normalizedQuery && (typeMatchesQuery || visibleChildren.length));
-                  const activeCount = children.filter(fixture => fixture.status === "Active").length;
-                  const reviewCount = children.length - activeCount;
+                  const activeCount = visibleChildren.filter(fixture => fixture.status === "Active").length;
+                  const reviewCount = visibleChildren.length - activeCount;
                   return <Fragment key={type.id}>
                     <TableRow className="bg-slate-50/70">
                       <TableCell className="px-3 py-2"><div className="flex items-center gap-1.5">
                         {children.length > 0 ? <button type="button" disabled={Boolean(normalizedQuery && (typeMatchesQuery || visibleChildren.length))} aria-label={`${expanded ? "Collapse" : "Expand"} ${type.name}`} aria-expanded={expanded} onClick={() => setExpandedTypes(previous => { const next = new Set(previous); if (next.has(type.id)) next.delete(type.id); else next.add(type.id); return next; })} className="rounded p-0.5 text-slate-500 hover:bg-slate-200 hover:text-primary disabled:cursor-default">{expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button> : <span className="w-5" />}
-                        <span className="font-semibold text-slate-800">{type.name}</span><span className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] text-slate-500">Grouping · {children.length} {children.length === 1 ? "subtype" : "subtypes"}</span>
+                        <span className="font-semibold text-slate-800">{type.name}</span><span className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] text-slate-500">Grouping · {visibleChildren.length} {visibleChildren.length === 1 ? "subtype" : "subtypes"}</span>
                       </div></TableCell>
-                      <TableCell colSpan={3} className="px-3 py-2 text-[10px] text-slate-500">{children.length ? `${activeCount} active${reviewCount ? ` · ${reviewCount} in review` : ""}` : "No subtypes yet"}</TableCell>
+                      <TableCell colSpan={4} className="px-3 py-2 text-[10px] text-slate-500">{visibleChildren.length ? `${activeCount} active${reviewCount ? ` · ${reviewCount} in review` : ""}` : "No applicable subtypes"}</TableCell>
                       <TableCell className="px-3 py-2"><Status value={type.status} /></TableCell>
                       <TableCell className="px-3 py-2 text-right"><div className="inline-flex gap-1"><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openTypeEditor("group", type)}>Edit type</Button><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openFixtureEditor({ code: "", name: "", type: type.name, subtype: "", parentTypeId: type.id, dimensions: "", eft: 0, status: "Active" }, true)}>Add subtype</Button></div></TableCell>
                     </TableRow>
                     {expanded && visibleChildren.map(fixture => <TableRow key={fixture.code}>
-                      <TableCell className="px-3 py-2"><div className="flex items-center gap-2 pl-7"><span className="h-4 border-l border-slate-200" /><span className="font-medium text-slate-800">{fixture.name}</span>{fixture.subtype && <span className="text-[10px] text-slate-400">{fixture.subtype}</span>}</div></TableCell>
-                      <TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{fixture.code}</TableCell><TableCell className="px-3 py-2 text-[11px] text-slate-600">{fixture.dimensions || "—"}</TableCell><TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft} EFT</TableCell><TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell><TableCell className="px-3 py-2 text-right"><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openFixtureEditor(fixture, false)}>Edit</Button></TableCell>
+                      <TableCell className="px-3 py-2"><div className="flex items-center gap-2 pl-7"><span className="h-4 border-l border-slate-200" /><FixturePhoto src={fixture.imageUrl} alt={`${fixture.name} fixture photo`} className="h-8 w-10 shrink-0" /><span className="font-medium text-slate-800">{fixture.name}</span>{fixture.subtype && <span className="text-[10px] text-slate-400">{fixture.subtype}</span>}</div></TableCell>
+                      <TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{fixture.code}</TableCell><TableCell className="px-3 py-2 text-[11px] text-slate-600">{fixture.dimensions || "—"}</TableCell><TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft} EFT</TableCell><TableCell className="px-3 py-2 text-[10px] text-slate-600">{formatSummary(fixture)}</TableCell><TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell><TableCell className="px-3 py-2 text-right"><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => setViewingFixtureCode(fixture.code)}>View</Button><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openFixtureEditor(fixture, false)}>Edit</Button></TableCell>
                     </TableRow>)}
-                    {expanded && normalizedQuery && typeMatchesQuery && !visibleChildren.length && <TableRow><TableCell colSpan={6} className="py-3 pl-12 text-[10px] text-slate-500">No subtypes match the selected status filter.</TableCell></TableRow>}
+                    {expanded && normalizedQuery && typeMatchesQuery && !visibleChildren.length && <TableRow><TableCell colSpan={7} className="py-3 pl-12 text-[10px] text-slate-500">No subtypes match the selected status filter.</TableCell></TableRow>}
                   </Fragment>;
                 })}
                 {standaloneFixtures.map(fixture => <TableRow key={fixture.code}>
-                  <TableCell className="px-3 py-2"><span className="font-medium text-slate-800">{fixture.name}</span><span className="ml-2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] text-slate-500">Standalone</span></TableCell><TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{fixture.code}</TableCell><TableCell className="px-3 py-2 text-[11px] text-slate-600">{fixture.dimensions || "—"}</TableCell><TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft} EFT</TableCell><TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell><TableCell className="px-3 py-2 text-right"><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openFixtureEditor(fixture, false)}>Edit</Button></TableCell>
+                  <TableCell className="px-3 py-2"><div className="flex items-center gap-2"><FixturePhoto src={fixture.imageUrl} alt={`${fixture.name} fixture photo`} className="h-8 w-10 shrink-0" /><span className="font-medium text-slate-800">{fixture.name}</span><span className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] text-slate-500">Standalone</span></div></TableCell><TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{fixture.code}</TableCell><TableCell className="px-3 py-2 text-[11px] text-slate-600">{fixture.dimensions || "—"}</TableCell><TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft} EFT</TableCell><TableCell className="px-3 py-2 text-[10px] text-slate-600">{formatSummary(fixture)}</TableCell><TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell><TableCell className="px-3 py-2 text-right"><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => setViewingFixtureCode(fixture.code)}>View</Button><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openFixtureEditor(fixture, false)}>Edit</Button></TableCell>
                 </TableRow>)}
-                {!groupedFixtures.length && !standaloneFixtures.length && <TableRow><TableCell colSpan={6} className="h-16 px-3 text-center text-xs text-slate-500">No fixture definitions match these filters.</TableCell></TableRow>}
+                {!groupedFixtures.length && !standaloneFixtures.length && <TableRow><TableCell colSpan={7} className="h-16 px-3 text-center text-xs text-slate-500">No fixture definitions match these filters.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </Panel> : <Panel title="Fixture list" description="A flat list of all assignable fixture definitions, including standalone fixtures.">
             <Table className="text-xs"><TableHeader><TableRow>
+              <TableHead className="h-9 px-3 text-[10px] tracking-wide">Image</TableHead>
               {([["code", "Fixture code"], ["name", "Fixture name"], ["type", "Parent fixture type"], ["dimensions", "Dimensions"], ["eft", "EFT"], ["status", "Status"]] as const).map(([column, label]) => <TableHead key={column} className="h-9 px-3 text-[10px] tracking-wide"><button type="button" onClick={() => { if (sortBy === column) setSortDirection(previous => previous === "asc" ? "desc" : "asc"); else { setSortBy(column); setSortDirection("asc"); } }} className="inline-flex items-center gap-1 hover:text-primary">{label}<span aria-hidden="true">{sortBy === column ? sortDirection === "asc" ? "↑" : "↓" : "↕"}</span></button></TableHead>)}
+              <TableHead className="h-9 px-3 text-[10px] tracking-wide">Applicable formats</TableHead>
               <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Actions</TableHead>
             </TableRow></TableHeader><TableBody>{filteredFixtures.map(fixture => <TableRow key={fixture.code}>
-              <TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{fixture.code}</TableCell><TableCell className="px-3 py-2 font-medium text-slate-800">{fixture.name}</TableCell><TableCell className="px-3 py-2 text-slate-600">{fixture.parentTypeId ? typeName(fixture.parentTypeId) : "—"}</TableCell><TableCell className="px-3 py-2 text-[11px] text-slate-600">{fixture.dimensions || "—"}</TableCell><TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft} EFT</TableCell><TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell><TableCell className="px-3 py-2 text-right"><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openFixtureEditor(fixture, false)}>Edit</Button></TableCell>
-            </TableRow>)}{!filteredFixtures.length && <TableRow><TableCell colSpan={7} className="h-16 px-3 text-center text-xs text-slate-500">No fixture definitions match these filters.</TableCell></TableRow>}</TableBody></Table>
+              <TableCell className="px-3 py-2"><FixturePhoto src={fixture.imageUrl} alt={`${fixture.name} fixture photo`} className="h-9 w-12" /></TableCell><TableCell className="px-3 py-2 font-mono text-[11px] font-medium text-primary">{fixture.code}</TableCell><TableCell className="px-3 py-2 font-medium text-slate-800">{fixture.name}</TableCell><TableCell className="px-3 py-2 text-slate-600">{fixture.parentTypeId ? typeName(fixture.parentTypeId) : "—"}</TableCell><TableCell className="px-3 py-2 text-[11px] text-slate-600">{fixture.dimensions || "—"}</TableCell><TableCell className="px-3 py-2 text-right tabular-nums text-slate-700">{fixture.eft} EFT</TableCell><TableCell className="px-3 py-2"><Status value={fixture.status} /></TableCell><TableCell className="px-3 py-2 text-[10px] text-slate-600">{formatSummary(fixture)}</TableCell><TableCell className="px-3 py-2 text-right"><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => setViewingFixtureCode(fixture.code)}>View</Button><Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-primary" onClick={() => openFixtureEditor(fixture, false)}>Edit</Button></TableCell>
+            </TableRow>)}{!filteredFixtures.length && <TableRow><TableCell colSpan={9} className="h-16 px-3 text-center text-xs text-slate-500">No fixture definitions match these filters.</TableCell></TableRow>}</TableBody></Table>
           </Panel>}
         </>}
         {tab === "inventory" && <StoreFixtureInventory
-          stores={initialStores}
+          stores={stores}
           blocks={blocks}
           fixtureList={fixtureList}
           compatibility={compatibility}
@@ -997,10 +1435,17 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
                   ["code", "Fixture code"], ["dimensions", "Dimensions"], ["eft", "EFT"],
                 ] as const).map(([key, label]) => <label key={key}><span className="mb-1 block text-[11px] font-semibold text-slate-600">{label}</span><Input type={key === "eft" ? "number" : "text"} min={key === "eft" ? "0" : undefined} step={key === "eft" ? "0.1" : undefined} value={editor.standalone[key]} onChange={event => setEditor(previous => previous?.kind === "type" ? { ...previous, standalone: { ...previous.standalone, [key]: key === "eft" ? Number(event.target.value) : event.target.value } } : previous)} className="h-9 text-xs" />{key === "code" && <span className="mt-1 block text-[10px] text-slate-500">Required to reference this fixture in other planning sections.</span>}</label>)}
                 <SelectField label="STATUS" value={editor.standalone.status} onChange={value => setEditor(previous => previous?.kind === "type" ? { ...previous, standalone: { ...previous.standalone, status: value as Fixture["status"] } } : previous)} options={["Active", "Review"].map(value => ({ value, label: value }))} />
+                <FixtureAppearanceFields
+                  imageUrl={editor.standalone.imageUrl}
+                  required={!editor.standalone.imageUrl}
+                  applicableFormatIds={editor.standalone.applicableFormatIds}
+                  onImageChange={imageUrl => setEditor(previous => previous?.kind === "type" ? { ...previous, standalone: { ...previous.standalone, imageUrl } } : previous)}
+                  onFormatsChange={applicableFormatIds => setEditor(previous => previous?.kind === "type" ? { ...previous, standalone: { ...previous.standalone, applicableFormatIds } } : previous)}
+                />
               </div>}
               {editor.mode === "group" && <SelectField label="GROUP STATUS" value={editor.status} onChange={value => setEditor(previous => previous?.kind === "type" ? { ...previous, status: value as FixtureType["status"] } : previous)} options={["Active", "Review"].map(value => ({ value, label: value }))} />}
             </div>
-            <DialogFooter><Button variant="outline" size="sm" onClick={() => setEditor(null)}>Cancel</Button><Button size="sm" onClick={saveFixture} className="bg-primary hover:bg-primary/90">Save type</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" size="sm" onClick={() => setEditor(null)}>Cancel</Button><Button size="sm" onClick={saveFixture} className="bg-primary hover:bg-primary/90">{editor.mode === "standalone" ? "Save fixture" : "Save type"}</Button></DialogFooter>
           </>}
           {editor?.kind === "fixture" && <>
             <DialogHeader><DialogTitle>{editor.isNew ? "Add fixture subtype" : "Edit fixture definition"}</DialogTitle><DialogDescription className="text-xs">{editor.fixture.parentTypeId ? `Configuration under ${typeName(editor.fixture.parentTypeId)}.` : "Standalone fixture. You may assign it to a parent fixture type."}</DialogDescription></DialogHeader>
@@ -1016,9 +1461,41 @@ function FixtureMaster({ blocks, fixtureList, setFixtureList, fixtureTypes, setF
               <label><span className="mb-1 block text-[11px] font-semibold text-slate-600">Dimensions</span><Input value={editor.fixture.dimensions} onChange={event => setEditor(previous => previous?.kind === "fixture" ? { ...previous, fixture: { ...previous.fixture, dimensions: event.target.value } } : previous)} className="h-9 text-xs" /></label>
               <label><span className="mb-1 block text-[11px] font-semibold text-slate-600">EFT · physical space</span><Input type="number" min="0" step="0.1" value={editor.fixture.eft} onChange={event => setEditor(previous => previous?.kind === "fixture" ? { ...previous, fixture: { ...previous.fixture, eft: Number(event.target.value) } } : previous)} className="h-9 text-xs" /></label>
               <SelectField label="STATUS" value={editor.fixture.status} onChange={value => setEditor(previous => previous?.kind === "fixture" ? { ...previous, fixture: { ...previous.fixture, status: value as Fixture["status"] } } : previous)} options={["Active", "Review"].map(value => ({ value, label: value }))} />
+              <FixtureAppearanceFields
+                imageUrl={editor.fixture.imageUrl}
+                required={editor.isNew || !editor.fixture.imageUrl}
+                applicableFormatIds={editor.fixture.applicableFormatIds}
+                onImageChange={imageUrl => setEditor(previous => previous?.kind === "fixture" ? { ...previous, fixture: { ...previous.fixture, imageUrl } } : previous)}
+                onFormatsChange={applicableFormatIds => setEditor(previous => previous?.kind === "fixture" ? { ...previous, fixture: { ...previous.fixture, applicableFormatIds } } : previous)}
+              />
             </div>
             <DialogFooter><Button variant="outline" size="sm" onClick={() => setEditor(null)}>Cancel</Button><Button size="sm" onClick={saveFixture} className="bg-primary hover:bg-primary/90">Save fixture</Button></DialogFooter>
           </>}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(viewingFixture)} onOpenChange={open => !open && setViewingFixtureCode(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{viewingFixture?.name ?? "Fixture details"}</DialogTitle>
+            <DialogDescription className="text-xs">Fixture definition · {viewingFixture?.code}</DialogDescription>
+          </DialogHeader>
+          {viewingFixture && <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
+            <div>
+              <FixturePhoto src={viewingFixture.imageUrl} alt={`${viewingFixture.name} fixture photo`} className="h-44 w-full" />
+              {viewingImageCredit && <p className="mt-1 text-[9px] leading-relaxed text-slate-500">
+                Photo: {viewingImageCredit.title} by {viewingImageCredit.artist} · {viewingImageCredit.license} · <a href={viewingImageCredit.sourceUrl} target="_blank" rel="noreferrer" className="text-primary underline">Source</a>
+              </p>}
+            </div>
+            <dl className="grid content-start grid-cols-2 gap-x-4 gap-y-3 text-xs">
+              <div><dt className="text-[10px] font-semibold uppercase text-slate-500">Type</dt><dd className="mt-1 text-slate-800">{viewingFixture.type}</dd></div>
+              <div><dt className="text-[10px] font-semibold uppercase text-slate-500">Subtype</dt><dd className="mt-1 text-slate-800">{viewingFixture.subtype || "—"}</dd></div>
+              <div><dt className="text-[10px] font-semibold uppercase text-slate-500">Dimensions</dt><dd className="mt-1 text-slate-800">{viewingFixture.dimensions || "—"}</dd></div>
+              <div><dt className="text-[10px] font-semibold uppercase text-slate-500">EFT</dt><dd className="mt-1 text-slate-800">{viewingFixture.eft} · physical space</dd></div>
+              <div><dt className="text-[10px] font-semibold uppercase text-slate-500">Status</dt><dd className="mt-1"><Status value={viewingFixture.status} /></dd></div>
+              <div className="col-span-2"><dt className="text-[10px] font-semibold uppercase text-slate-500">Applicable store formats</dt><dd className="mt-1 text-slate-700">{applicableFormats(viewingFixture).length === allFormatIds.length ? "All formats" : applicableFormats(viewingFixture).map(id => storeFormats.find(format => format.id === id)?.name ?? id).join(", ") || "None"}</dd></div>
+            </dl>
+          </div>}
+          <DialogFooter><Button variant="outline" size="sm" onClick={() => setViewingFixtureCode(null)}>Close</Button>{viewingFixture && <Button size="sm" onClick={() => openFixtureEditor(viewingFixture, false)} className="bg-primary hover:bg-primary/90">Edit fixture</Button>}</DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -1212,213 +1689,292 @@ function StoreGrading({ blocks, stores, setStores, inventory, compatibility, fix
   );
 }
 
-function SpaceRevision({ blocks, blockId, setBlockId }: { blocks: PlanningBlock[]; blockId: string; setBlockId: (id: string) => void }) {
+function SpaceRevision({ formatBlocks, stores, blockId, setBlockId }: {
+  formatBlocks: Record<string, FormatPlanningBlock[]>;
+  stores: PlanningStore[];
+  blockId: string;
+  setBlockId: (id: string) => void;
+}) {
   const { toast } = useToast();
-  const formats = Array.from(new Set(initialStores.map(store => store.format))).sort();
-  const [storeFormat, setStoreFormat] = useState(formats[0] ?? "");
+  const [storeFormatId, setStoreFormatId] = useState(storeFormats[0]?.id ?? "");
   const [grade, setGrade] = useState("XS");
   const [draft, setDraft] = useState<Record<string, number[]>>({});
   const [saved, setSaved] = useState<Record<string, number[]>>({});
-  const block = blocks.find(item => item.id === blockId) ?? blocks[0];
-  const areas = block?.areaIds ?? [];
-  const formatGradingStructures: Record<string, { grade: string; minimumSlots: number; capacity: number }[]> = {
-    Destination: [
-      { grade: "XS", minimumSlots: 24, capacity: 40 },
-      { grade: "S", minimumSlots: 36, capacity: 56 },
-      { grade: "M", minimumSlots: 52, capacity: 80 },
-      { grade: "L", minimumSlots: 68, capacity: 104 },
-      { grade: "XL", minimumSlots: 84, capacity: 128 },
-      { grade: "Mega", minimumSlots: 100, capacity: 160 },
-    ],
-    Community: [
-      { grade: "XS", minimumSlots: 18, capacity: 28 },
-      { grade: "S", minimumSlots: 26, capacity: 40 },
-      { grade: "M", minimumSlots: 36, capacity: 56 },
-      { grade: "L", minimumSlots: 48, capacity: 72 },
-    ],
-    Flagship: [
-      { grade: "S", minimumSlots: 40, capacity: 64 },
-      { grade: "M", minimumSlots: 56, capacity: 88 },
-      { grade: "L", minimumSlots: 72, capacity: 112 },
-      { grade: "XL", minimumSlots: 88, capacity: 136 },
-      { grade: "Mega", minimumSlots: 104, capacity: 168 },
-    ],
-    Transit: [
-      { grade: "XS", minimumSlots: 20, capacity: 32 },
-      { grade: "S", minimumSlots: 30, capacity: 48 },
-      { grade: "M", minimumSlots: 44, capacity: 68 },
-      { grade: "L", minimumSlots: 58, capacity: 88 },
-      { grade: "XL", minimumSlots: 72, capacity: 108 },
-    ],
+  const format = storeFormats.find(item => item.id === storeFormatId) ?? storeFormats[0];
+  const selectedFormatBlocks = format ? formatBlocks[storeFormatId] ?? [] : [];
+  const selectedBlock = selectedFormatBlocks.find(item => item.id === blockId || item.id === `${storeFormatId}-${blockId}`)
+    ?? selectedFormatBlocks[0];
+  const selectedBlockBaseId = selectedBlock?.id.startsWith(`${storeFormatId}-`)
+    ? selectedBlock.id.slice(storeFormatId.length + 1)
+    : selectedBlock?.id ?? blockId;
+  const areas = selectedBlock?.areaIds ?? [];
+  const formatStores = stores.filter(store => store.storeFormatId === storeFormatId);
+  const activeGrades = gradeNames.filter(name => formatStores.some(store => store.currentGradeByBlock[selectedBlockBaseId] === name));
+  const availableGrades = activeGrades.length ? activeGrades : [gradeNames[0]];
+  const activeGrade = availableGrades.includes(grade) ? grade : availableGrades[0];
+  const gradeSlotCapacity: Record<string, { minimumSlots: number; capacity: number }> = {
+    XS: { minimumSlots: 24, capacity: 40 },
+    S: { minimumSlots: 36, capacity: 56 },
+    M: { minimumSlots: 52, capacity: 80 },
+    L: { minimumSlots: 68, capacity: 104 },
+    XL: { minimumSlots: 84, capacity: 128 },
+    Mega: { minimumSlots: 100, capacity: 160 },
   };
-  const availableGrades = formatGradingStructures[storeFormat] ?? formatGradingStructures.Destination;
-  const activeGrade = availableGrades.some(item => item.grade === grade) ? grade : availableGrades[0]?.grade ?? gradeNames[0];
-  const gradeConfig = availableGrades.find(item => item.grade === activeGrade) ?? { grade: activeGrade, minimumSlots: 0, capacity: 40 };
-  const allocationKey = `${block?.id ?? blockId}:${storeFormat}:${activeGrade}`;
-  const defaultAllocations = areas.map((_, index) => block?.id === "beverage"
+  const gradeConfig = gradeSlotCapacity[activeGrade] ?? gradeSlotCapacity.XS;
+  const allocationKey = `${selectedBlock?.id ?? blockId}:${storeFormatId}:${activeGrade}`;
+  const defaultAllocations = areas.map((_, index) => selectedBlockBaseId === "beverage"
     ? [40, 60, 0, 0, 0][index] ?? 0
     : Math.floor(100 / Math.max(1, areas.length)) + (index < 100 % Math.max(1, areas.length) ? 1 : 0));
   const baseline = saved[allocationKey] ?? defaultAllocations;
   const values = draft[allocationKey] ?? baseline;
   const totalPercent = values.reduce((sum, value) => sum + value, 0);
+  const isValid = totalPercent === 100 && values.every(value => Number.isInteger(value) && value >= 0 && value <= 100);
   const changedAreaCount = values.filter((value, index) => value !== (baseline[index] ?? 0)).length;
+  const slotCountsFor = (allocation: number[]) => {
+    const exactCounts = allocation.map(percent => gradeConfig.capacity * percent / 100);
+    const slotCounts = exactCounts.map(Math.floor);
+    const targetSlots = Math.round(gradeConfig.capacity * allocation.reduce((sum, percent) => sum + percent, 0) / 100);
+    const remainderOrder = exactCounts
+      .map((exact, index) => ({ index, remainder: exact - slotCounts[index] }))
+      .sort((first, second) => second.remainder - first.remainder);
+    for (let remaining = targetSlots - slotCounts.reduce((sum, count) => sum + count, 0), index = 0; remaining > 0; remaining -= 1, index += 1) {
+      const targetIndex = remainderOrder[index % Math.max(1, remainderOrder.length)]?.index;
+      if (targetIndex === undefined) break;
+      slotCounts[targetIndex] += 1;
+    }
+    return slotCounts;
+  };
+  const currentSlotCounts = slotCountsFor(baseline);
+  const revisedSlotCounts = slotCountsFor(values);
   const setValue = (index: number, value: number) => setDraft(previous => ({
     ...previous,
     [allocationKey]: values.map((current, currentIndex) => currentIndex === index
-      ? Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : current
+      ? Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : current
       : current),
   }));
   const revert = () => {
     setDraft(previous => ({ ...previous, [allocationKey]: [...baseline] }));
-    toast({ title: "Changes cancelled", description: `Revised allocations for ${activeGrade} ${storeFormat} stores were restored.` });
+    toast({ title: "Changes cancelled", description: `Revised allocations for ${activeGrade} ${format?.name ?? ""} stores were restored.` });
   };
   const save = () => {
-    if (totalPercent !== 100) {
+    if (!isValid) {
       toast({ title: "Allocation must total 100%", description: `Current total is ${totalPercent}%. Adjust percentages before applying.`, variant: "destructive" });
       return;
     }
     setSaved(previous => ({ ...previous, [allocationKey]: [...values] }));
-    toast({ title: "Space allocation applied", description: `${activeGrade} grade allocations for ${block?.name ?? "the selected block"} and ${storeFormat} stores have been saved.` });
+    toast({ title: "Space allocation applied", description: `${activeGrade} grade allocations for ${selectedBlock?.name ?? "the selected block"} and ${format?.name ?? "selected"} stores have been saved.` });
+  };
+  const copyPatternToGrades = () => {
+    setDraft(previous => {
+      const next = { ...previous };
+      availableGrades.forEach(targetGrade => {
+        next[`${selectedBlock?.id ?? blockId}:${storeFormatId}:${targetGrade}`] = [...values];
+      });
+      return next;
+    });
+    toast({ title: "Pattern copied to active grades", description: `The revised ${activeGrade} allocation was copied to ${availableGrades.length} active grades. You can still edit each grade independently.` });
+  };
+  const changeBlock = (nextId: string) => {
+    const next = selectedFormatBlocks.find(item => item.id === nextId);
+    if (!next) return;
+    setBlockId(next.id.startsWith(`${storeFormatId}-`) ? next.id.slice(storeFormatId.length + 1) : next.id);
   };
   const allocationColors = ["bg-primary", "bg-primary/75", "bg-sky-600", "bg-sky-500", "bg-indigo-500", "bg-blue-400"];
-
+  const salesByArea = areas.map(areaId => {
+    const areaSkus = skus.filter(sku => sku.areaId === areaId);
+    const salesMillions = areaSkus.reduce((total, sku) => total + (sku.sales ?? 0), 0);
+    const units = areaSkus.reduce((total, sku) => total + (sku.units ?? 0), 0);
+    return { areaId, salesMillions, units };
+  });
+  const totalSalesMillions = salesByArea.reduce((total, area) => total + area.salesMillions, 0);
+  const averageBlockEft = selectedBlockBaseId
+    ? formatStores.reduce((total, store) => total + (store.eftByBlock[selectedBlockBaseId] ?? 0), 0) / Math.max(1, formatStores.length)
+    : 0;
+  const productivity = salesByArea.map((area, index) => {
+    const spaceShare = baseline[index] ?? 0;
+    const salesShare = totalSalesMillions > 0 ? area.salesMillions / totalSalesMillions * 100 : 0;
+    const allocatedEft = averageBlockEft * spaceShare / 100;
+    return { ...area, spaceShare, salesShare, allocatedEft, salesPerEft: allocatedEft > 0 ? area.salesMillions / allocatedEft : null, gap: salesShare - spaceShare };
+  });
+  const maxSalesPerEft = Math.max(0, ...productivity.map(item => item.salesPerEft ?? 0));
   return (
-    <div className="space-y-4">
-      <ScreenHeader title="Space Revision" description="Review and revise merchandise-area allocations by block and store format." />
-      <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-2">
-        <SelectField label="MERCHANDISING BLOCK" value={block?.id ?? ""} onChange={setBlockId} options={blocks.map(item => ({ value: item.id, label: item.name }))} />
-        <SelectField label="STORE FORMAT" value={storeFormat} onChange={setStoreFormat} options={formats.map(format => ({ value: format, label: format }))} />
+    <div className="space-y-3">
+      <ScreenHeader title="Space Revision" description="Compare illustrative merchandise-area productivity with current space, then review proposed slot impacts." />
+      <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 md:grid-cols-2">
+        <SelectField label="STORE FORMAT" value={storeFormatId} onChange={value => setStoreFormatId(value)} options={storeFormats.map(item => ({ value: item.id, label: item.name }))} />
+        <SelectField label="MERCHANDISING BLOCK" value={selectedBlock?.id ?? ""} onChange={changeBlock} options={selectedFormatBlocks.map(item => ({ value: item.id, label: item.name }))} />
       </div>
-      <Panel
-        title="Space Allocation"
-        description={`${block?.name ?? "Merchandising block"} · ${storeFormat} format · ${activeGrade} grade`}
-        right={<div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={revert} className="h-8 text-xs">Cancel / Revert</Button><Button size="sm" onClick={save} className="h-8 gap-1.5 bg-primary text-xs hover:bg-primary/90"><Check className="h-3.5 w-3.5" /> Save / Apply</Button></div>}
-      >
-        <div className="space-y-4 p-4">
-          <div role="tablist" aria-label="Store grade" className="flex flex-wrap gap-1 border-b border-slate-200">
-            {availableGrades.map(item => (
-              <button
-                key={item.grade}
-                type="button"
-                role="tab"
-                aria-selected={item.grade === activeGrade}
-                onClick={() => setGrade(item.grade)}
-                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${item.grade === activeGrade ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-800"}`}
-              >
-                {item.grade}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-4 text-slate-600">
-              <span>Minimum required: <strong className="font-semibold text-slate-800">{gradeConfig.minimumSlots} slots</strong></span>
-              <span>Available capacity: <strong className="font-semibold text-slate-800">{gradeConfig.capacity} slots</strong></span>
-              <span>{changedAreaCount} changed {changedAreaCount === 1 ? "area" : "areas"}</span>
-            </div>
-            <span className={`font-semibold tabular-nums ${totalPercent === 100 ? "text-emerald-700" : "text-amber-700"}`}>
-              Revised allocation: {totalPercent}%
-            </span>
-          </div>
-          <div
-            role="img"
-            aria-label={`Revised allocation distribution totals ${totalPercent} percent`}
-            className="flex h-3 overflow-hidden rounded border border-slate-200 bg-slate-50"
-          >
-            {values.map((value, index) => value > 0 && (
-              <div key={areas[index]} title={`${areaName(areas[index])}: ${value}%`} style={{ width: `${value}%` }} className={`${allocationColors[index % allocationColors.length]} border-r border-white/70 last:border-r-0`} />
-            ))}
-          </div>
-          <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${totalPercent === 100 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-            {totalPercent === 100 ? <Check className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
-            <span>{totalPercent === 100 ? "Allocation balances to 100%." : `Allocation totals ${totalPercent}%. Revised percentages must total 100% before saving.`}</span>
-          </div>
-          <div className="overflow-x-auto">
-            <Table className="min-w-[680px] text-xs">
-              <TableHeader><TableRow>
-                <TableHead className="h-9 px-3 text-[10px] tracking-wide">Merchandise area</TableHead>
-                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Current allocation</TableHead>
-                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Revised allocation</TableHead>
-                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Current slots</TableHead>
-                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Revised slots</TableHead>
-                <TableHead className="h-9 px-3 text-right text-[10px] tracking-wide">Change in slots</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>{areas.map((id, index) => {
-                const current = baseline[index] ?? 0;
-                const revised = values[index] ?? 0;
-                const currentSlots = Math.round(gradeConfig.capacity * current / 100);
-                const revisedSlots = Math.round(gradeConfig.capacity * revised / 100);
-                const change = revisedSlots - currentSlots;
-                return <TableRow key={id}>
-                  <TableCell className="px-3 py-2 font-medium text-slate-800">{areaName(id)}{revised === 0 && <span className="ml-2 text-[10px] font-normal text-slate-400">zero allocation</span>}</TableCell>
-                  <TableCell className="px-3 py-2 text-right tabular-nums text-slate-600">{current}%</TableCell>
-                  <TableCell className="px-3 py-2">
-                    <label className="ml-auto flex w-20 items-center justify-end gap-1">
-                      <Input type="number" min="0" max="100" step="1" value={revised} onChange={event => setValue(index, Number(event.target.value))} className="h-7 w-14 text-right text-xs" aria-label={`${areaName(id)} revised allocation percentage`} />
-                      <span className="text-slate-400">%</span>
-                    </label>
-                  </TableCell>
-                  <TableCell className="px-3 py-2 text-right tabular-nums text-slate-600">{currentSlots}</TableCell>
-                  <TableCell className="px-3 py-2 text-right font-medium tabular-nums text-slate-800">{revisedSlots}</TableCell>
-                  <TableCell className={`px-3 py-2 text-right tabular-nums ${change > 0 ? "text-emerald-700" : change < 0 ? "text-rose-700" : "text-slate-400"}`}>{change > 0 ? `+${change}` : change}</TableCell>
-                </TableRow>;
-              })}</TableBody>
-            </Table>
-          </div>
-          <p className="text-[10px] text-slate-500">Minimums and capacities are planning values; allocation percentages and slot counts remain editable.</p>
+      {!selectedBlock ? <Panel title="No blocks available" description="Choose a format that has a merchandising block definition."><p className="px-4 py-3 text-xs text-slate-500">The selected store format does not have any block definitions yet.</p></Panel> : <>
+        <div className="flex flex-wrap items-center gap-1.5 px-1 text-[9px] font-semibold uppercase tracking-wide text-slate-500" aria-label="Space revision stages">
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-primary">1 · Productivity Analysis</span><ArrowRight className="h-3 w-3 text-slate-300" />
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">2 · Current Allocation</span><ArrowRight className="h-3 w-3 text-slate-300" />
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">3 · Revised Allocation</span>
         </div>
-      </Panel>
+        <Panel
+          title="1–2 · Productivity Analysis & Current Allocation"
+          description={`${selectedBlock.name} · illustrative same-period mock sales · not actual WHSmith performance`}
+          right={<SelectField label="STORE GRADE" value={activeGrade} onChange={setGrade} options={availableGrades.map(value => ({ value, label: value }))} className="w-28" />}
+        >
+          <div className="space-y-2 p-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] text-slate-600">
+              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-slate-400" /> Current space share</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Sales share</span>
+              <span className="text-slate-400">Current allocation · {activeGrade} grade · minimum {gradeConfig.minimumSlots} / capacity {gradeConfig.capacity} slots · average block {averageBlockEft.toFixed(2)} EFT/store</span>
+            </div>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[850px] text-[10px]">
+                <TableHeader><TableRow className="h-7">
+                  <TableHead className="h-7 px-2 text-[9px]">Merchandise area</TableHead>
+                  <TableHead className="h-7 min-w-[150px] px-2 text-[9px]">Space share vs sales share</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Sales retail ($M)</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Units</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Current allocation</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Current slots</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Sales share</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Gap · pp</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Sales / EFT ($M/EFT)</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>{productivity.map(item => {
+                  const gapClass = item.gap >= 10 ? "text-emerald-700" : item.gap <= -10 ? "text-rose-700" : "text-slate-500";
+                  const areaIndex = areas.indexOf(item.areaId);
+                  return <TableRow key={item.areaId} className="h-8">
+                    <TableCell className="whitespace-nowrap px-2 py-1 font-medium text-slate-800">{areaName(item.areaId)}</TableCell>
+                    <TableCell className="px-2 py-1">
+                      <div className="space-y-0.5" title={`Current space ${item.spaceShare.toFixed(1)}%; sales ${item.salesShare.toFixed(1)}%`}>
+                        <div className="h-2 overflow-hidden rounded-sm bg-slate-100"><div className="h-full rounded-sm bg-slate-400" style={{ width: `${Math.min(100, item.spaceShare)}%` }} /></div>
+                        <div className="h-2 overflow-hidden rounded-sm bg-slate-100"><div className="h-full rounded-sm bg-primary" style={{ width: `${Math.min(100, item.salesShare)}%` }} /></div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-2 py-1 text-right tabular-nums text-slate-700">${item.salesMillions.toFixed(1)}M</TableCell>
+                    <TableCell className="px-2 py-1 text-right tabular-nums text-slate-600">{formatNumber(item.units)}</TableCell>
+                    <TableCell className="px-2 py-1 text-right tabular-nums text-slate-600">{item.spaceShare.toFixed(1)}%</TableCell>
+                    <TableCell className="px-2 py-1 text-right tabular-nums text-slate-700">{currentSlotCounts[areaIndex] ?? 0}</TableCell>
+                    <TableCell className="px-2 py-1 text-right tabular-nums text-slate-600">{item.salesShare.toFixed(1)}%</TableCell>
+                    <TableCell className={`px-2 py-1 text-right font-semibold tabular-nums ${gapClass}`}>{item.gap > 0 ? "+" : ""}{item.gap.toFixed(1)}</TableCell>
+                    <TableCell className="px-2 py-1 text-right tabular-nums text-slate-700" title={`Sales ${item.salesMillions.toFixed(2)} $M ÷ allocated ${item.allocatedEft.toFixed(2)} EFT`}>{item.salesPerEft === null ? "—" : item.salesPerEft.toFixed(2)}</TableCell>
+                  </TableRow>;
+                })}</TableBody>
+              </Table>
+            </div>
+            <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+              {productivity.slice().sort((a, b) => (b.salesPerEft ?? -1) - (a.salesPerEft ?? -1)).map(item => <div key={item.areaId} className="grid grid-cols-[minmax(90px,1fr)_2fr_auto] items-center gap-2 text-[9px]">
+                <span className="truncate text-slate-600">{areaName(item.areaId)}</span>
+                <span className="h-1.5 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-primary/80" style={{ width: `${maxSalesPerEft ? Math.max(item.salesPerEft === null ? 0 : 3, (item.salesPerEft ?? 0) / maxSalesPerEft * 100) : 0}%` }} /></span>
+                <span className="w-20 text-right font-medium tabular-nums text-slate-700">{item.salesPerEft === null ? "—" : `$${item.salesPerEft.toFixed(2)}M/EFT`}</span>
+              </div>)}
+            </div>
+            <p className="text-[9px] text-slate-500">Sales per EFT = illustrative merchandise-area sales ($M) ÷ estimated average allocated block EFT per store. EFT is physical area and remains separate from facing slots; sample values are not actual WHSmith performance.</p>
+          </div>
+        </Panel>
+        <Panel title="3 · Revised Allocation" description={`${selectedBlock.name} · ${activeGrade} grade · revise percentages and inspect slot changes immediately`} right={<div className="flex flex-wrap items-center justify-end gap-2"><Button variant="outline" size="sm" disabled={!isValid || availableGrades.length < 2} onClick={copyPatternToGrades} className="h-8 text-xs">Copy pattern to grades</Button><Button variant="outline" size="sm" onClick={revert} className="h-8 text-xs">Cancel / Revert</Button><Button size="sm" disabled={!isValid} onClick={save} className="h-8 gap-1.5 bg-primary text-xs hover:bg-primary/90"><Check className="h-3.5 w-3.5" /> Save / Apply</Button></div>}>
+          <div className="space-y-2 p-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[10px]">
+              <span className="text-slate-600">{changedAreaCount} changed {changedAreaCount === 1 ? "area" : "areas"} · slot capacity {gradeConfig.capacity}</span>
+              <span className={`font-semibold tabular-nums ${isValid ? "text-emerald-700" : "text-amber-700"}`}>Revised allocation: {totalPercent}%</span>
+            </div>
+            <div role="img" aria-label={`Revised allocation distribution totals ${totalPercent} percent`} className="flex h-3 overflow-hidden rounded border border-slate-200 bg-slate-50">
+              {values.map((value, index) => value > 0 && <div key={areas[index]} title={`${areaName(areas[index])}: ${value}%`} style={{ width: `${value}%` }} className={`${allocationColors[index % allocationColors.length]} border-r border-white/70 last:border-r-0`} />)}
+            </div>
+            <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-[11px] ${isValid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+              {isValid ? <Check className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
+              <span>{isValid ? "Allocation balances to 100%." : `Allocation totals ${totalPercent}%. Revised percentages must total 100% before saving.`}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[820px] text-xs">
+                <TableHeader><TableRow className="h-8">
+                  <TableHead rowSpan={2} className="h-8 px-2 text-[10px]">Merchandise area</TableHead>
+                  <TableHead colSpan={2} className="h-8 border-l px-2 text-center text-[10px]">Allocation</TableHead>
+                  <TableHead colSpan={3} className="h-8 border-l px-2 text-center text-[10px]">Facing slots · capacity {gradeConfig.capacity}</TableHead>
+                  <TableHead rowSpan={2} className="h-8 border-l px-2 text-right text-[10px]">Sales-share gap</TableHead>
+                </TableRow><TableRow className="h-7">
+                  <TableHead className="h-7 border-l px-2 text-right text-[9px]">Current</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Revised</TableHead>
+                  <TableHead className="h-7 border-l px-2 text-right text-[9px]">Current</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Revised</TableHead>
+                  <TableHead className="h-7 px-2 text-right text-[9px]">Change</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>{areas.map((id, index) => {
+                  const current = baseline[index] ?? 0;
+                  const revised = values[index] ?? 0;
+                  const currentSlots = currentSlotCounts[index] ?? 0;
+                  const revisedSlots = revisedSlotCounts[index] ?? 0;
+                  const slotChange = revisedSlots - currentSlots;
+                  const analytics = productivity[index];
+                  return <TableRow key={id} className="h-8">
+                    <TableCell className="px-2 py-1 font-medium text-slate-800">{areaName(id)}{revised === 0 && <span className="ml-2 text-[9px] font-normal text-slate-400">zero allocation</span>}</TableCell>
+                    <TableCell className="border-l px-2 py-1 text-right tabular-nums text-slate-500">{current}%</TableCell>
+                    <TableCell className="px-2 py-1">
+                      <label className="ml-auto flex w-20 items-center justify-end gap-1">
+                        <Input type="number" min="0" max="100" step="1" value={revised} onChange={event => setValue(index, Number(event.target.value))} className="h-7 w-14 text-right text-xs" aria-label={`${areaName(id)} revised allocation percentage`} />
+                        <span className="text-slate-400">%</span>
+                      </label>
+                    </TableCell>
+                    <TableCell className="border-l px-2 py-1 text-right tabular-nums text-slate-500">{currentSlots}</TableCell>
+                    <TableCell className="px-2 py-1 text-right font-medium tabular-nums text-slate-800">{revisedSlots}</TableCell>
+                    <TableCell className={`px-2 py-1 text-right font-semibold tabular-nums ${slotChange > 0 ? "text-emerald-700" : slotChange < 0 ? "text-rose-700" : "text-slate-400"}`}>{slotChange > 0 ? `+${slotChange}` : slotChange}</TableCell>
+                    <TableCell className={`border-l px-2 py-1 text-right tabular-nums ${analytics.gap >= 10 ? "font-semibold text-emerald-700" : analytics.gap <= -10 ? "font-semibold text-rose-700" : "text-slate-500"}`}>{analytics.gap > 0 ? "+" : ""}{analytics.gap.toFixed(1)} pp</TableCell>
+                  </TableRow>;
+                })}</TableBody>
+              </Table>
+            </div>
+            <p className="text-[9px] text-slate-500">Slot counts are calculated as allocation × available facing-slot capacity and rounded to the nearest whole slot. EFT is a separate physical-space measure. Minimums and capacities are illustrative planning values.</p>
+          </div>
+        </Panel>
+      </>}
     </div>
   );
 }
 
-function PlanogramProduct({ sku, selected, onSelect, onDragStart }: {
+function SkuThumbnail({ sku, className }: {
   sku: PlanningSku;
-  selected: boolean;
-  onSelect: () => void;
-  onDragStart: (event: React.DragEvent<HTMLButtonElement>) => void;
+  className?: string;
 }) {
-  const area = merchAreas.find(item => item.id === sku.areaId);
-  const icon = area?.department === "Beverages"
-    ? Droplets
-    : sku.areaId.includes("audio") || sku.areaId === "headphones"
-      ? Headphones
-      : sku.areaId.includes("chargers") || sku.areaId.includes("mobile")
-        ? PlugZap
-        : sku.areaId === "books" || sku.areaId === "paper"
-          ? BookOpen
-          : Package;
-  const ProductIcon = icon;
-  const brandColors: Record<string, string> = {
-    "Coca-Cola": "bg-red-700",
-    Sprite: "bg-emerald-700",
-    Fanta: "bg-orange-600",
-    "Northstar Springs": "bg-sky-800",
-    "Orchard Press": "bg-amber-700",
-    SoundPod: "bg-slate-900",
-    Volt: "bg-yellow-600",
-    Connect: "bg-blue-800",
-    Pulse: "bg-violet-800",
-    WHSmith: "bg-rose-800",
-  };
-  const brandColor = brandColors[sku.brand] ?? "bg-indigo-800";
+  const colors = [
+    "#1d4ed8", "#047857", "#b45309", "#be123c", "#6d28d9", "#0f766e", "#334155",
+    "#0369a1", "#c2410c", "#7e22ce", "#15803d", "#a21caf", "#b91c1c", "#4338ca",
+    "#0e7490", "#4d7c0f", "#a16207", "#9f1239", "#5b21b6", "#166534", "#9a3412",
+    "#1e40af", "#0f766e",
+  ];
+  const colorIndex = Math.max(0, skus.findIndex(item => item.id === sku.id)) % colors.length;
+  const packageColor = colors[colorIndex];
 
   return (
-    <button
-      type="button"
-      draggable
-      onClick={onSelect}
-      onMouseEnter={onSelect}
-      onDragStart={onDragStart}
-      aria-label={`${sku.code}, ${sku.description}`}
-      className={`group relative flex h-[112px] min-w-0 flex-1 flex-col overflow-hidden rounded-t-[3px] border border-slate-300 bg-white text-left shadow-[0_2px_4px_rgba(15,23,42,0.18)] hover:z-10 hover:shadow-md focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selected ? "z-[1] outline outline-2 outline-offset-1 outline-blue-500" : ""}`}
-    >
-      <span className={`flex h-5 shrink-0 items-center justify-center truncate px-1 text-[8px] font-black tracking-[0.08em] text-white ${brandColor}`}>{sku.brand}</span>
-      <span className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 bg-slate-50 px-1">
-        <ProductIcon className="h-8 w-8 shrink-0 stroke-[1.5] text-slate-800" aria-hidden="true" />
-        <span className="line-clamp-2 text-center text-[8px] font-bold leading-tight text-slate-800">{sku.description}</span>
-      </span>
-      <span className="flex h-4 shrink-0 items-center justify-center bg-white px-1 font-mono text-[7px] font-semibold text-slate-500">{sku.code}</span>
-    </button>
+    <svg viewBox="0 0 80 120" className={className} role="img" aria-label={`${sku.brand} ${sku.description}`}>
+        {sku.packageType === "bottle" && <>
+          <path d="M34 5h12v13l7 8v77a7 7 0 0 1-7 7H34a7 7 0 0 1-7-7V26l7-8z" fill={packageColor} stroke="#334155" strokeWidth="2" />
+          <rect x="34" y="4" width="12" height="9" rx="2" fill="#e2e8f0" stroke="#64748b" />
+          <path d="M28 48h24v32H28z" fill="#fff" opacity=".93" />
+        </>}
+        {sku.packageType === "can" && <>
+          <rect x="25" y="15" width="30" height="91" rx="7" fill={packageColor} stroke="#334155" strokeWidth="2" />
+          <ellipse cx="40" cy="17" rx="14" ry="4" fill="#cbd5e1" stroke="#64748b" />
+          <ellipse cx="40" cy="104" rx="14" ry="4" fill="#94a3b8" />
+          <path d="M27 49h26v28H27z" fill="#fff" opacity=".93" />
+        </>}
+        {sku.packageType === "carton" && <>
+          <path d="M28 16h24l8 10v77H20V26z" fill={packageColor} stroke="#334155" strokeWidth="2" />
+          <path d="M28 16h24l8 10H20z" fill="#e2e8f0" stroke="#64748b" strokeWidth="1.5" />
+          <rect x="23" y="48" width="34" height="28" rx="2" fill="#fff" opacity=".94" />
+        </>}
+        {sku.packageType === "pouch" && <>
+          <path d="M24 14h32l-3 11 5 70-7 12H29l-7-12 5-70z" fill={packageColor} stroke="#334155" strokeWidth="2" />
+          <path d="M26 25h28M25 89h30" stroke="#f8fafc" strokeWidth="3" opacity=".85" />
+          <rect x="25" y="48" width="30" height="25" rx="3" fill="#fff" opacity=".94" />
+        </>}
+        {sku.packageType === "box" && <>
+          <path d="M20 25 40 13l20 12v75H20z" fill={packageColor} stroke="#334155" strokeWidth="2" />
+          <path d="m20 25 20 12 20-12M40 37v63" fill="none" stroke="#e2e8f0" strokeWidth="2" />
+          <rect x="25" y="49" width="30" height="27" rx="2" fill="#fff" opacity=".94" />
+        </>}
+        {sku.packageType === "blister" && <>
+          <path d="M20 13h40v94H20z" rx="4" fill={packageColor} stroke="#334155" strokeWidth="2" />
+          <rect x="27" y="27" width="26" height="48" rx="8" fill="#e2e8f0" fillOpacity=".9" stroke="#64748b" strokeWidth="2" />
+          <rect x="25" y="80" width="30" height="16" rx="2" fill="#fff" opacity=".94" />
+        </>}
+        <text x="40" y="61" textAnchor="middle" fontSize="6" fontWeight="700" fill={packageColor}>{sku.brand.slice(0, 11)}</text>
+        <text x="40" y="70" textAnchor="middle" fontSize="5" fill="#334155">{sku.code}</text>
+        <path d="M24 109h32" stroke="#64748b" strokeWidth="2" opacity=".45" />
+    </svg>
   );
 }
 
@@ -1441,6 +1997,8 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
   const [sortBy, setSortBy] = useState<"area" | "sku" | "facings">("area");
   const [workspaceView, setWorkspaceView] = useState<"allocation" | "planogram">("allocation");
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
+  const [draggingSkuId, setDraggingSkuId] = useState<string | null>(null);
+  const [activeShelfIndex, setActiveShelfIndex] = useState<number | null>(null);
   const [storeSearch, setStoreSearch] = useState("");
   const [formatFilter, setFormatFilter] = useState("All formats");
   const formats = Array.from(new Set(initialStores.map(store => store.format))).sort();
@@ -1530,36 +2088,49 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
   const planogramAssigned = planogramAssignments.reduce((sum, item) => sum + item.facings, 0);
   const planogramRemaining = planogramCapacity - planogramAssigned;
   const planogramUtilization = planogramCapacity > 0 ? planogramAssigned / planogramCapacity * 100 : 0;
-  const planogramShelfCount = selectedPlanogramFixture
-    ? selectedPlanogramFixture.fixture.type === "Cooler" ? 4
-      : selectedPlanogramFixture.fixture.type === "Till Unit" ? 3
-        : selectedPlanogramFixture.fixture.type === "Wall Bay" ? 5 : 4
-    : 4;
-  const planogramShelfCapacity = Math.max(1, Math.ceil(planogramCapacity / planogramShelfCount));
-  const shelfRows = Array.from({ length: planogramShelfCount }, () => [] as { assignment: FacingAssignment; sku: PlanningSku }[]);
-  let placedFacings = 0;
+  const defaultShelfCount = selectedPlanogramFixture?.fixture.type === "Till Unit" ? 3 : selectedPlanogramFixture?.fixture.type === "Wall Bay" ? 5 : 4;
+  const planogramLayout = selectedPlanogramFixture
+    ? fixturePlanogramLayouts[selectedPlanogramFixture.fixtureCode] ?? {
+      usableWidthMm: 900,
+      shelves: Array.from({ length: defaultShelfCount }, () => ({ clearHeightMm: 350 })),
+    }
+    : { usableWidthMm: 900, shelves: Array.from({ length: 4 }, () => ({ clearHeightMm: 350 })) };
+  const planogramShelfCount = planogramLayout.shelves.length;
+  const shelfRows = planogramLayout.shelves.map(() => [] as { assignment: FacingAssignment; sku: PlanningSku }[]);
+  const shelfOccupiedWidth = planogramLayout.shelves.map(() => 0);
+  const unplacedPlanogramAssignments: { assignment: FacingAssignment; sku: PlanningSku }[] = [];
   planogramAssignments
     .slice()
-    .sort((first, second) => first.areaId.localeCompare(second.areaId) || (skus.find(sku => sku.id === first.skuId)?.code ?? "").localeCompare(skus.find(sku => sku.id === second.skuId)?.code ?? ""))
+    .sort((first, second) => {
+      const firstShelf = first.shelfIndex ?? 0;
+      const secondShelf = second.shelfIndex ?? 0;
+      return firstShelf - secondShelf
+        || (first.shelfOrder ?? Number.MAX_SAFE_INTEGER) - (second.shelfOrder ?? Number.MAX_SAFE_INTEGER)
+        || first.areaId.localeCompare(second.areaId)
+        || (skus.find(sku => sku.id === first.skuId)?.code ?? "").localeCompare(skus.find(sku => sku.id === second.skuId)?.code ?? "");
+    })
     .forEach(assignment => {
       const sku = skus.find(item => item.id === assignment.skuId);
-      if (!sku || placedFacings >= planogramCapacity) return;
-      const preferredShelf = assignment.shelfIndex;
-      const firstShelf = Number.isInteger(preferredShelf)
-        ? Math.max(0, Math.min(planogramShelfCount - 1, preferredShelf!))
-        : shelfRows.findIndex(row => row.length < planogramShelfCapacity);
-      let remainingFacings = Math.min(assignment.facings, planogramCapacity - placedFacings);
-      for (let shelfOffset = 0; shelfOffset < planogramShelfCount && remainingFacings > 0; shelfOffset += 1) {
-        const shelfIndex = (Math.max(0, firstShelf) + shelfOffset) % planogramShelfCount;
-        const availableOnShelf = Math.max(0, planogramShelfCapacity - shelfRows[shelfIndex].length);
-        const facingsToPlace = Math.min(availableOnShelf, remainingFacings);
-        for (let facing = 0; facing < facingsToPlace; facing += 1) {
-          shelfRows[shelfIndex].push({ assignment, sku });
-        }
-        placedFacings += facingsToPlace;
-        remainingFacings -= facingsToPlace;
+      if (!sku) return;
+      const requiredWidth = sku.widthMm * assignment.facings;
+      const preferredShelf = Number.isInteger(assignment.shelfIndex) ? assignment.shelfIndex! : null;
+      const candidateShelves = preferredShelf === null
+        ? planogramLayout.shelves.map((_, index) => index)
+        : [Math.max(0, Math.min(planogramShelfCount - 1, preferredShelf))];
+      const shelfIndex = candidateShelves.find(index =>
+        sku.heightMm <= planogramLayout.shelves[index].clearHeightMm
+        && shelfOccupiedWidth[index] + requiredWidth <= planogramLayout.usableWidthMm
+      );
+      if (shelfIndex === undefined) {
+        unplacedPlanogramAssignments.push({ assignment, sku });
+        return;
       }
+      shelfRows[shelfIndex].push({ assignment, sku });
+      shelfOccupiedWidth[shelfIndex] += requiredWidth;
     });
+  const planogramOccupiedWidth = shelfOccupiedWidth.reduce((sum, width) => sum + width, 0);
+  const planogramTotalWidth = planogramLayout.usableWidthMm * planogramLayout.shelves.length;
+  const planogramRemainingWidth = planogramTotalWidth - planogramOccupiedWidth;
   const selectedPlanogramSku = (selectedSkuId ? eligibleSkus.find(sku => sku.id === selectedSkuId) : undefined)
     ?? planogramAssignments.map(assignment => skus.find(sku => sku.id === assignment.skuId)).find((sku): sku is PlanningSku => Boolean(sku));
   const storesForList = storesForFormat
@@ -1610,8 +2181,11 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
     }
     setFixtureCode(nextFixtureCode);
   };
-  const dropSkuOnShelf = (event: React.DragEvent<HTMLElement>, shelfIndex: number) => {
+  const dropSkuOnShelf = (event: React.DragEvent<HTMLElement>, shelfIndex: number, insertionIndex?: number) => {
     event.preventDefault();
+    event.stopPropagation();
+    setActiveShelfIndex(null);
+    setDraggingSkuId(null);
     const skuId = event.dataTransfer.getData("text/plain");
     const sku = eligibleSkus.find(item => item.id === skuId);
     if (!sku || !selectedPlanogramFixture?.areaSlots.some(area => area.areaId === sku.areaId)) {
@@ -1623,23 +2197,73 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
       return;
     }
     const existing = getAssignment(sku.id);
+    const targetFacings = existing?.facings && existing.facings > 0 ? existing.facings : 1;
+    const targetCapacity = capacityFor(selectedPlanogramFixture.fixtureCode, sku.areaId);
+    const assignedAtDestination = assignedFor(selectedPlanogramFixture.fixtureCode, sku.areaId)
+      - (existing?.fixtureCode === selectedPlanogramFixture.fixtureCode ? existing.facings : 0);
+    if (targetFacings > targetCapacity - assignedAtDestination) {
+      toast({
+        title: "No facing slots available",
+        description: `${sku.code} needs ${targetFacings} slots, but this fixture has only ${Math.max(0, targetCapacity - assignedAtDestination)} available for ${areaName(sku.areaId)}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const shelf = planogramLayout.shelves[shelfIndex];
+    if (sku.heightMm > shelf.clearHeightMm) {
+      toast({
+        title: "Product is too tall for this shelf",
+        description: `${sku.description} is ${sku.heightMm} mm high; shelf clearance is ${shelf.clearHeightMm} mm.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const existingOnTargetShelf = existing?.fixtureCode === selectedPlanogramFixture.fixtureCode
+      && shelfRows[shelfIndex].some(row => row.assignment.skuId === sku.id)
+      ? existing.facings * sku.widthMm
+      : 0;
+    const shelfWidthAfterMove = shelfOccupiedWidth[shelfIndex] - existingOnTargetShelf + sku.widthMm * targetFacings;
+    if (shelfWidthAfterMove > planogramLayout.usableWidthMm) {
+      const remainingWidth = Math.max(0, planogramLayout.usableWidthMm - shelfOccupiedWidth[shelfIndex] + existingOnTargetShelf);
+      toast({
+        title: "Product does not fit on this shelf",
+        description: `${sku.description} needs ${sku.widthMm * targetFacings} mm; only ${remainingWidth} mm of usable shelf width remains.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const destinationOrder = shelfRows[shelfIndex]
+      .filter(row => row.assignment.skuId !== sku.id)
+      .map(row => row.assignment);
+    const insertAt = Math.max(0, Math.min(insertionIndex ?? destinationOrder.length, destinationOrder.length));
+    destinationOrder.splice(insertAt, 0, existing ?? {
+      id: `as-${Date.now()}-${sku.id}`,
+      storeId: selectedStoreId,
+      blockId: selectedBlockId,
+      areaId: sku.areaId,
+      fixtureCode: selectedPlanogramFixture.fixtureCode,
+      skuId: sku.id,
+      facings: 1,
+    });
     setAssignments(previous => {
       const index = previous.findIndex(item => item.storeId === selectedStoreId && item.blockId === selectedBlockId && item.skuId === sku.id);
-      if (index >= 0) {
-        return previous.map((item, itemIndex) => itemIndex === index
-          ? { ...item, fixtureCode: selectedPlanogramFixture.fixtureCode, facings: item.facings > 0 ? item.facings : 1, shelfIndex }
-          : item);
-      }
-      return [...previous, {
-        id: `as-${Date.now()}-${sku.id}`,
-        storeId: selectedStoreId,
-        blockId: selectedBlockId,
-        areaId: sku.areaId,
-        fixtureCode: selectedPlanogramFixture.fixtureCode,
-        skuId: sku.id,
-        facings: 1,
-        shelfIndex,
-      }];
+      const nextAssignment: FacingAssignment = index >= 0
+        ? { ...previous[index], fixtureCode: selectedPlanogramFixture.fixtureCode, facings: targetFacings, shelfIndex }
+        : { ...destinationOrder[insertAt], fixtureCode: selectedPlanogramFixture.fixtureCode, facings: targetFacings, shelfIndex };
+      const next = index >= 0
+        ? previous.map((item, itemIndex) => itemIndex === index ? nextAssignment : item)
+        : [...previous, nextAssignment];
+      return next.map(item => {
+        const order = item.storeId === selectedStoreId
+          && item.blockId === selectedBlockId
+          && item.fixtureCode === selectedPlanogramFixture.fixtureCode
+          && item.shelfIndex === shelfIndex
+          ? destinationOrder.findIndex(row => row.skuId === item.skuId)
+          : -1;
+        return order >= 0 ? { ...item, shelfOrder: order } : item;
+      });
     });
     setFixtureCode(selectedPlanogramFixture.fixtureCode);
     setSelectedSkuId(sku.id);
@@ -1650,12 +2274,19 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
   const startSkuDrag = (event: React.DragEvent<HTMLElement>, skuId: string) => {
     event.dataTransfer.setData("text/plain", skuId);
     event.dataTransfer.effectAllowed = "move";
+    setDraggingSkuId(skuId);
   };
   const updateFacings = (skuId: string, facings: number) => {
     const existing = getAssignment(skuId);
     if (!existing) return;
     const safeFacings = Number.isFinite(facings) ? Math.max(0, Math.floor(facings)) : 0;
     setAssignments(previous => previous.map(item => item.id === existing.id ? { ...item, facings: safeFacings } : item));
+  };
+  const removeFromPlanogram = (skuId: string) => {
+    const existing = getAssignment(skuId);
+    if (!existing) return;
+    setAssignments(previous => previous.filter(item => item.id !== existing.id));
+    toast({ title: "SKU removed from this fixture", description: "The SKU remains eligible for this merchandising block." });
   };
   const openStore = (nextStoreId: string) => {
     const store = initialStores.find(item => item.id === nextStoreId);
@@ -1746,7 +2377,12 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
               const overAllocated = fixtureAssigned > fixtureCapacity;
               return <TableRow key={sku.id} className={`h-10 border-b border-slate-200/70 hover:bg-slate-50/60 ${overAllocated ? "bg-rose-50/50" : ""}`}>
                 <TableCell className="whitespace-nowrap border-r px-2 py-1 font-mono text-[11px] font-medium text-primary">{sku.code}</TableCell>
-                <TableCell className="max-w-64 truncate border-r px-2 py-1 text-[11px] font-medium text-slate-800" title={sku.description}>{sku.description}</TableCell>
+                <TableCell className="max-w-64 border-r px-2 py-1 text-[11px] font-medium text-slate-800" title={sku.description}>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <SkuThumbnail sku={sku} className="h-8 w-6 shrink-0 rounded border border-slate-200 bg-white p-0.5" />
+                    <span className="truncate">{sku.description}</span>
+                  </span>
+                </TableCell>
                 <TableCell className="border-r px-2 py-1 text-right tabular-nums text-[11px] text-slate-600">{sku.sales?.toFixed(1) ?? "—"}</TableCell>
                 <TableCell className="border-r px-2 py-1 text-right tabular-nums text-[11px] text-slate-600">{sku.units?.toLocaleString() ?? "—"}</TableCell>
                 <TableCell className="border-r px-2 py-1 text-center"><span className="inline-flex h-5 items-center rounded border border-slate-200 bg-white px-2 text-[10px] font-bold text-slate-600">{currentGrade}</span></TableCell>
@@ -1769,11 +2405,14 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
                 />
                 {selectedPlanogramFixture && <p className="mt-1 text-[10px] text-slate-500">{selectedPlanogramFixture.fixture.type} · {selectedPlanogramFixture.fixture.dimensions}</p>}
                 <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-xs">
-                  <div className="flex justify-between"><span className="text-slate-500">Facing slots</span><strong>{planogramCapacity}</strong></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Facing slots · {selectedPlanogramFixture.quantity} instance{selectedPlanogramFixture.quantity === 1 ? "" : "s"}</span><strong>{planogramCapacity}</strong></div>
                   <div className="flex justify-between"><span className="text-slate-500">Assigned facings</span><strong className={planogramAssigned > planogramCapacity ? "text-rose-700" : ""}>{planogramAssigned}</strong></div>
                   <div className="flex justify-between"><span className="text-slate-500">Remaining</span><strong className={planogramRemaining < 0 ? "text-rose-700" : ""}>{Math.max(0, planogramRemaining)}</strong></div>
                   <div className="flex justify-between text-[10px] text-slate-500"><span>Utilisation</span><span>{planogramUtilization.toFixed(1)}%</span></div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${planogramUtilization > 100 ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, planogramUtilization)}%` }} /></div>
+                  <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-500">Shelf width occupied</span><strong>{planogramOccupiedWidth.toLocaleString()} mm</strong></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Shelf width remaining</span><strong>{planogramRemainingWidth.toLocaleString()} mm</strong></div>
+                  <p className="text-[9px] leading-relaxed text-slate-400">{planogramLayout.usableWidthMm.toLocaleString()} mm usable width per displayed instance · {planogramShelfCount} shelves · illustrative dimensions</p>
                 </div>
               </section>
 
@@ -1799,14 +2438,16 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
                         draggable={fixtureSupportsSku}
                         onClick={() => setSelectedSkuId(sku.id)}
                         onDragStart={event => startSkuDrag(event, sku.id)}
+                        onDragEnd={() => { setDraggingSkuId(null); setActiveShelfIndex(null); }}
                         className={`w-full cursor-grab px-3 py-2 text-left active:cursor-grabbing ${selectedSkuId === sku.id ? "bg-blue-50" : "hover:bg-slate-50"} ${!fixtureSupportsSku ? "opacity-50" : ""}`}
                         title={fixtureSupportsSku ? "Drag onto a shelf to assign or move this SKU" : "This fixture does not support the SKU's merchandise area"}
                       >
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <SkuThumbnail sku={sku} className="h-10 w-7 shrink-0 rounded border border-slate-200 bg-white p-0.5" />
                           <span className="min-w-0">
                             <span className="block font-mono text-[10px] font-semibold text-primary">{sku.code}</span>
                             <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-800">{sku.description}</span>
-                            <span className="mt-0.5 block text-[9px] text-slate-500">{areaName(sku.areaId)}</span>
+                            <span className="mt-0.5 block text-[9px] text-slate-500">{areaName(sku.areaId)} · {sku.widthMm} × {sku.heightMm} mm</span>
                           </span>
                           <span className="shrink-0 text-right text-[9px] text-slate-500">
                             {assignment?.fixtureCode === selectedPlanogramFixture?.fixtureCode ? `${assignment.facings} facing${assignment.facings === 1 ? "" : "s"}` : assignment ? fixtureName(assignment.fixtureCode, fixtureList) : fixtureSupportsSku ? "Drag to assign" : "Incompatible"}
@@ -1826,7 +2467,7 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
                   <h3 className="text-xs font-bold text-slate-800">{selectedPlanogramFixture?.fixture.name ?? "No compatible fixture"}</h3>
                   <p className="text-[10px] text-slate-500">{selectedPlanogramFixture?.fixture.subtype ?? "Add a compatible fixture to this store and block"} · Front-facing allocation preview</p>
                 </div>
-                <span className="text-[10px] text-slate-400">Drag SKUs onto a shelf to assign · illustrative, not an approved planogram</span>
+                <span className="text-[10px] text-slate-400">Drag tray SKUs to assign; drag shelf products to move or reorder · illustrative only</span>
               </div>
               {planogramAssigned > planogramCapacity && <div role="alert" className="flex items-center gap-2 border-b border-rose-200 bg-rose-50 px-3 py-2 text-[10px] text-rose-800"><CircleAlert className="h-3.5 w-3.5 shrink-0" /><strong>Over capacity by {planogramAssigned - planogramCapacity} facings.</strong> Reduce allocation in SKU Allocation.</div>}
               <div className="overflow-x-auto bg-slate-50 px-3 py-4 sm:px-6">
@@ -1835,53 +2476,100 @@ function FacingsPresentations({ blocks, fixtureList, inventory, compatibility, a
                     <div className="flex h-8 items-center justify-between bg-slate-800 px-3 text-[9px] font-bold tracking-[0.14em] text-white">
                       <span>{selectedPlanogramFixture.fixture.name.toUpperCase()}</span>
                       <span>{selectedBlock.name.toUpperCase()}</span>
-                      <span>{planogramCapacity} SLOTS</span>
+                      <span>{planogramCapacity} FACING SLOTS · {planogramLayout.usableWidthMm} MM WIDE</span>
                     </div>
                     {shelfRows.map((products, shelfIndex) => (
                       <div
                         key={shelfIndex}
-                        onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }}
+                        onDragEnter={() => setActiveShelfIndex(shelfIndex)}
+                        onDragLeave={() => setActiveShelfIndex(current => current === shelfIndex ? null : current)}
+                        onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setActiveShelfIndex(shelfIndex); }}
                         onDrop={event => dropSkuOnShelf(event, shelfIndex)}
-                        className="relative flex h-[126px] items-end gap-1.5 border-b-[10px] border-slate-400 bg-white px-2 pb-2 pt-1 shadow-[inset_0_-4px_5px_rgba(15,23,42,0.10)] transition-colors hover:bg-blue-50/50"
+                        className={`relative flex h-[144px] items-end gap-0 border-b-[10px] border-slate-400 px-2 pb-2 pt-1 shadow-[inset_0_-4px_5px_rgba(15,23,42,0.10)] transition-colors ${activeShelfIndex === shelfIndex ? "bg-blue-50 ring-2 ring-inset ring-blue-500" : "bg-white hover:bg-blue-50/50"}`}
                         aria-label={`Shelf ${planogramShelfCount - shelfIndex}, drop eligible SKUs here`}
                       >
+                        <div className="absolute inset-x-2 top-1 flex justify-between text-[8px] font-semibold uppercase tracking-wide text-slate-400">
+                          <span>S{planogramShelfCount - shelfIndex} · {planogramLayout.shelves[shelfIndex].clearHeightMm} mm clearance</span>
+                          <span>{shelfOccupiedWidth[shelfIndex].toLocaleString()} / {planogramLayout.usableWidthMm.toLocaleString()} mm occupied</span>
+                        </div>
                         <span className="absolute left-0 top-1/2 z-10 -translate-x-[calc(100%+7px)] -translate-y-1/2 whitespace-nowrap text-[8px] font-bold uppercase tracking-wider text-slate-400">{`S${planogramShelfCount - shelfIndex}`}</span>
-                        {products.map(({ sku }, facingIndex) => (
-                          <PlanogramProduct
-                            key={`${sku.id}-${shelfIndex}-${facingIndex}`}
-                            sku={sku}
-                            selected={selectedPlanogramSku?.id === sku.id}
-                            onSelect={() => setSelectedSkuId(sku.id)}
-                            onDragStart={event => startSkuDrag(event, sku.id)}
-                          />
-                        ))}
-                        {!products.length && <span className="mb-1 ml-2 text-[10px] text-slate-300">Drop a compatible SKU on this shelf</span>}
+                        {products.map(({ assignment, sku }, productIndex) => {
+                          const productWidth = sku.widthMm * assignment.facings;
+                          return (
+                            <div
+                              key={sku.id}
+                              role="button"
+                              tabIndex={0}
+                              draggable
+                              onClick={() => setSelectedSkuId(sku.id)}
+                              onKeyDown={event => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  setSelectedSkuId(sku.id);
+                                }
+                              }}
+                              onDragStart={event => startSkuDrag(event, sku.id)}
+                              onDragEnd={() => { setDraggingSkuId(null); setActiveShelfIndex(null); }}
+                              onDragOver={event => { event.preventDefault(); event.stopPropagation(); setActiveShelfIndex(shelfIndex); }}
+                              onDrop={event => dropSkuOnShelf(event, shelfIndex, productIndex)}
+                              title={`${sku.description} · ${assignment.facings} facing${assignment.facings === 1 ? "" : "s"} · ${productWidth} mm wide`}
+                              aria-label={`${sku.description}, ${assignment.facings} facings. Drag to rearrange; press Enter to inspect.`}
+                              className={`relative flex shrink-0 cursor-grab items-end gap-0 overflow-hidden rounded-t-sm pb-0.5 active:cursor-grabbing hover:z-10 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedPlanogramSku?.id === sku.id ? "z-[1] outline outline-2 outline-offset-1 outline-blue-500" : ""} ${draggingSkuId === sku.id ? "opacity-40" : ""}`}
+                              style={{
+                                flexBasis: `${productWidth / planogramLayout.usableWidthMm * 100}%`,
+                                height: `${Math.min(96, sku.heightMm / planogramLayout.shelves[shelfIndex].clearHeightMm * 100)}%`,
+                              }}
+                            >
+                              {Array.from({ length: assignment.facings }, (_, facingIndex) => (
+                                <SkuThumbnail
+                                  key={`${sku.id}-${facingIndex}`}
+                                  sku={sku}
+                                  className="h-full min-w-0 flex-1 border-x border-slate-300/50 bg-white/70 p-0.5"
+                                />
+                              ))}
+                              {assignment.facings > 1 && <span className="absolute right-0 top-0 rounded-bl bg-slate-800/80 px-1 text-[7px] font-bold text-white">{assignment.facings}×</span>}
+                            </div>
+                          );
+                        })}
+                        {!products.length && <span className="mb-1 ml-2 text-[10px] text-slate-300">{activeShelfIndex === shelfIndex ? "Release to place product" : "Drop a compatible SKU on this shelf"}</span>}
                       </div>
                     ))}
                   </div>
                 ) : <div className="flex min-h-56 items-center justify-center text-xs text-slate-500">No compatible fixtures are assigned for this block.</div>}
               </div>
+              {unplacedPlanogramAssignments.length > 0 && <div role="alert" className="border-t border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-900">
+                <strong>Some assigned products are not drawn on a shelf:</strong>{" "}
+                {unplacedPlanogramAssignments.map(({ assignment, sku }) => `${sku.code} (${assignment.facings} facing${assignment.facings === 1 ? "" : "s"})`).join(", ")}{" "}
+                — shelf width or clearance is insufficient. Reduce facings or choose another shelf/fixture.
+              </div>}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-3 py-2">
                 {selectedPlanogramSku ? (
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-slate-800">{selectedPlanogramSku.description}</p>
-                    <p className="text-[10px] text-slate-500">
-                      <span className="font-mono text-blue-700">{selectedPlanogramSku.code}</span>
-                      <span className="px-1.5 text-slate-300">·</span>{areaName(selectedPlanogramSku.areaId)}
-                      <span className="px-1.5 text-slate-300">·</span>{fixtureName(getAssignment(selectedPlanogramSku.id)?.fixtureCode ?? "", fixtureList) || "Not assigned"}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <SkuThumbnail sku={selectedPlanogramSku} className="h-11 w-8 shrink-0 rounded border border-slate-200 bg-white p-0.5" />
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-slate-800">{selectedPlanogramSku.description}</p>
+                      <p className="text-[10px] text-slate-500">
+                        <span className="font-mono text-blue-700">{selectedPlanogramSku.code}</span>
+                        <span className="px-1.5 text-slate-300">·</span>{areaName(selectedPlanogramSku.areaId)}
+                        <span className="px-1.5 text-slate-300">·</span>{selectedPlanogramSku.widthMm} × {selectedPlanogramSku.heightMm} mm
+                        <span className="px-1.5 text-slate-300">·</span>{fixtureName(getAssignment(selectedPlanogramSku.id)?.fixtureCode ?? "", fixtureList) || "Not assigned"}
+                      </p>
+                    </div>
                   </div>
                 ) : <p className="text-[10px] text-slate-500">Select or hover a product to inspect its allocation.</p>}
-                <div className="shrink-0 text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">SKU facings</p>
-                  <p className="text-sm font-bold tabular-nums text-slate-800">{selectedPlanogramSku ? getAssignment(selectedPlanogramSku.id)?.facings ?? 0 : 0}</p>
+                <div className="flex shrink-0 items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">SKU facings</p>
+                    <p className="text-sm font-bold tabular-nums text-slate-800">{selectedPlanogramSku ? getAssignment(selectedPlanogramSku.id)?.facings ?? 0 : 0}</p>
+                  </div>
+                  {selectedPlanogramSku && getAssignment(selectedPlanogramSku.id)?.fixtureCode === selectedPlanogramFixture?.fixtureCode && <Button variant="outline" size="sm" onClick={() => removeFromPlanogram(selectedPlanogramSku.id)} className="h-7 gap-1.5 px-2 text-[10px] text-rose-700 hover:bg-rose-50"><Trash2 className="h-3 w-3" /> Remove from fixture</Button>}
                 </div>
               </div>
             </section>
           </div>
         )}
       </> : <Panel title="No compatible merchandising block" description="The selected store has no active fixture relationship for the available merchandising blocks."><p className="px-3 pb-3 text-xs text-slate-500">Choose another store format or store with configured compatible fixtures.</p></Panel>}
-      <p className="text-[10px] text-slate-500">Facing slots are configured per fixture, block and merchandise area. EFT is physical space and is not converted to facing capacity.</p>
+      <p className="text-[10px] text-slate-500">Facing slots are configured per fixture, block and merchandise area; shelf width uses separate illustrative SKU dimensions. Capacity includes all configured fixture instances, while the preview shows one representative instance. These mock dimensions are not validated measurements.</p>
     </div>
   );
 }
@@ -1890,6 +2578,7 @@ export default function SpacePlanning() {
   const [location] = useLocation();
   const [, setLocation] = useLocation();
   const [blocks, setBlocks] = useState<PlanningBlock[]>(initialBlocks);
+  const [formatBlocks, setFormatBlocks] = useState<Record<string, FormatPlanningBlock[]>>(initialFormatBlocks);
   const [fixtureList, setFixtureList] = useState<Fixture[]>(initialFixtures);
   const [fixtureTypes, setFixtureTypes] = useState<FixtureType[]>(initialFixtureTypes);
   const [compatibility, setCompatibility] = useState<FixtureCompatibility[]>([
@@ -1907,19 +2596,19 @@ export default function SpacePlanning() {
   const page = useMemo(() => {
     switch (screen.path) {
       case "/space-planning/fixtures":
-        return <FixtureMaster blocks={blocks} fixtureList={fixtureList} setFixtureList={setFixtureList} fixtureTypes={fixtureTypes} setFixtureTypes={setFixtureTypes} compatibility={compatibility} inventory={inventory} setInventory={setInventory} setCompatFixture={setSelectedFixtureCode} />;
+        return <FixtureMaster blocks={blocks} fixtureList={fixtureList} setFixtureList={setFixtureList} fixtureTypes={fixtureTypes} setFixtureTypes={setFixtureTypes} compatibility={compatibility} inventory={inventory} setInventory={setInventory} stores={stores} setCompatFixture={setSelectedFixtureCode} />;
       case "/space-planning/compatibility":
         return <BlockCompatibility blocks={blocks} fixtureList={fixtureList} compatibility={compatibility} setCompatibility={setCompatibility} />;
       case "/space-planning/grading":
         return <StoreGrading blocks={blocks} stores={stores} setStores={setStores} inventory={inventory} compatibility={compatibility} fixtureList={fixtureList} blockId={selectedBlockId} setBlockId={setSelectedBlockId} />;
       case "/space-planning/revision":
-        return <SpaceRevision blocks={blocks} blockId={selectedBlockId} setBlockId={setSelectedBlockId} />;
+        return <SpaceRevision formatBlocks={formatBlocks} stores={stores} blockId={selectedBlockId} setBlockId={setSelectedBlockId} />;
       case "/space-planning/facings":
         return <FacingsPresentations blocks={blocks} fixtureList={fixtureList} inventory={inventory} compatibility={compatibility} assignments={assignments} setAssignments={setAssignments} storeId={selectedStoreId} setStoreId={setSelectedStoreId} blockId={selectedBlockId} setBlockId={setSelectedBlockId} fixtureCode={selectedFixtureCode} setFixtureCode={setSelectedFixtureCode} />;
       default:
-        return <MerchandisingBlocks blocks={blocks} setBlocks={setBlocks} />;
+        return <MerchandisingBlocks blocks={formatBlocks} setBlocks={setFormatBlocks} />;
     }
-  }, [screen.path, blocks, fixtureList, fixtureTypes, compatibility, inventory, stores, assignments, selectedFixtureCode, selectedBlockId, selectedStoreId]);
+  }, [screen.path, blocks, formatBlocks, fixtureList, fixtureTypes, compatibility, inventory, stores, assignments, selectedFixtureCode, selectedBlockId, selectedStoreId]);
 
   return (
     <ModuleShell>

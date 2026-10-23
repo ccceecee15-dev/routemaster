@@ -15,6 +15,16 @@ export interface PlanningBlock {
   status: "Active" | "Draft" | "Review";
 }
 
+export interface StoreFormat {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface FormatPlanningBlock extends PlanningBlock {
+  formatId: string;
+}
+
 export interface Fixture {
   code: string;
   name: string;
@@ -24,6 +34,8 @@ export interface Fixture {
   dimensions: string;
   eft: number;
   status: "Active" | "Review";
+  imageUrl?: string;
+  applicableFormatIds?: string[];
 }
 
 export interface FixtureType {
@@ -52,12 +64,15 @@ export interface StoreInventory {
   fixtureCode: string;
   quantity: number;
   change: "Existing" | "Added" | "Removed";
+  assignmentSource?: "Bulk rule" | "Store override";
+  bulkRuleId?: string;
 }
 
 export interface PlanningStore {
   id: string;
   name: string;
   format: string;
+  storeFormatId: string;
   channel: string;
   property: string;
   state: string;
@@ -72,8 +87,20 @@ export interface PlanningSku {
   description: string;
   areaId: string;
   brand: string;
+  widthMm: number;
+  heightMm: number;
+  packageType: "bottle" | "can" | "carton" | "box" | "pouch" | "blister";
   sales?: number;
   units?: number;
+}
+
+export interface PlanogramShelf {
+  clearHeightMm: number;
+}
+
+export interface FixturePlanogramLayout {
+  usableWidthMm: number;
+  shelves: PlanogramShelf[];
 }
 
 export interface FacingAssignment {
@@ -85,6 +112,7 @@ export interface FacingAssignment {
   skuId: string;
   facings: number;
   shelfIndex?: number;
+  shelfOrder?: number;
 }
 
 type MerchAreaSeed = Pick<MerchArea, "id" | "name" | "department">;
@@ -239,16 +267,97 @@ export const initialBlocks: PlanningBlock[] = [
   { id: "books", code: "BLK-007", name: "Books & News", areaIds: ["books", "newspapers"], status: "Active" },
 ];
 
-export const fixtures: Fixture[] = [
-  { code: "IC-01", name: "Island Cooler", type: "Cooler", subtype: "Four-sided island", parentTypeId: "cooler", dimensions: "1,200 × 900 × 1,850 mm", eft: 6.4, status: "Active" },
-  { code: "CW-04", name: "Cooler Wall 4S", type: "Cooler", subtype: "Four-shelf wall", parentTypeId: "cooler", dimensions: "1,200 × 650 × 2,100 mm", eft: 5.2, status: "Active" },
-  { code: "CW-05", name: "Cooler Wall 5S", type: "Cooler", subtype: "Five-shelf wall", parentTypeId: "cooler", dimensions: "1,200 × 650 × 2,250 mm", eft: 6.1, status: "Active" },
-  { code: "CW-06", name: "Cooler Wall 6S", type: "Cooler", subtype: "Six-shelf wall", parentTypeId: "cooler", dimensions: "1,200 × 650 × 2,400 mm", eft: 7, status: "Review" },
-  { code: "SC-SL", name: "Standalone Cooler Slim", type: "Cooler", subtype: "Single-door slimline", parentTypeId: "cooler", dimensions: "650 × 700 × 2,050 mm", eft: 3.4, status: "Active" },
-  { code: "WB-12", name: "Wall Bay 1200", type: "Wall Bay", subtype: "Standard wall bay", parentTypeId: "wall-bay", dimensions: "1,200 × 450 × 2,100 mm", eft: 2.9, status: "Active" },
-  { code: "TU-06", name: "Till Unit", type: "Till Unit", subtype: "", dimensions: "1,800 × 500 × 950 mm", eft: 1.8, status: "Active" },
-  { code: "GON-09", name: "Gondola 900", type: "Gondola", subtype: "Double-sided gondola", parentTypeId: "gondola", dimensions: "900 × 900 × 1,800 mm", eft: 4.2, status: "Active" },
+export const storeFormats: StoreFormat[] = [
+  { id: "legacy", name: "Legacy", code: "LEG" },
+  { id: "inmotion", name: "InMotion", code: "INM" },
+  { id: "tech-express", name: "Tech Express", code: "TEX" },
+  { id: "bookshop", name: "The Bookshop by WHSmith", code: "BKS" },
+  { id: "curio-city", name: "curi.o.city", code: "CUR" },
+  { id: "funky-pigeon", name: "Funky Pigeon", code: "FPG" },
+  { id: "fresh-plus", name: "Fresh+", code: "FRH" },
 ];
+
+export const fixtureImageCredits: Partial<Record<string, { title: string; artist: string; license: string; sourceUrl: string }>> = {
+  "/fixtures/cooler-familymart.jpg": {
+    title: "Cold beverage refrigerator at FamilyMart Beijie Store",
+    artist: "Hoia Saerda Mea 28",
+    license: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Cold_beverage_refrigerator_at_FamilyMart_Beijie_Store_20190810.jpg",
+  },
+  "/fixtures/cooler-doors-santorin.jpg": {
+    title: "Supermarket in Akrotiri, Santorini",
+    artist: "Dietmar Rabich",
+    license: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Santorin_(GR),_Akrotiri,_Supermarkt_--_2017_--_2877-83.jpg",
+  },
+  "/fixtures/store-shelving.jpg": {
+    title: "Shelving in an Aldi store in Australia",
+    artist: "Bidgee",
+    license: "CC BY-SA 3.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Shelving_in_an_Aldi_store_in_Australia.jpg",
+  },
+  "/fixtures/gondola-spar.jpg": {
+    title: "SPAR supermarket interior, Son Moro Cala Millor Mallorca",
+    artist: "Steffen Mokosch",
+    license: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:SPAR_supermarket_interior_Son_Moro_Cala_Millor_Mallorca.jpg",
+  },
+  "/fixtures/cash-registers.jpg": {
+    title: "Cash Registers",
+    artist: "Marlith",
+    license: "CC BY-SA 3.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Cash_Registers.JPG",
+  },
+};
+
+const formatBlockSeeds: Record<string, string[]> = {
+  legacy: ["beverage", "electronics", "stationery", "food", "books"],
+  inmotion: ["electronics", "beverage", "travel", "food"],
+  "tech-express": ["electronics", "travel", "stationery"],
+  bookshop: ["books", "stationery", "food"],
+  "curio-city": ["travel", "beverage", "food", "books"],
+  "funky-pigeon": ["stationery", "books", "travel"],
+  "fresh-plus": ["food", "beverage", "stationery"],
+};
+
+export const initialFormatBlocks: Record<string, FormatPlanningBlock[]> = Object.fromEntries(
+  storeFormats.map(format => [
+    format.id,
+    (formatBlockSeeds[format.id] ?? []).flatMap((blockId, index) => {
+      const source = initialBlocks.find(block => block.id === blockId);
+      if (!source) return [];
+      return [{
+        ...source,
+        id: `${format.id}-${source.id}`,
+        formatId: format.id,
+        code: `MB-${format.code}-${String(index + 1).padStart(3, "0")}`,
+        areaIds: [...source.areaIds],
+      }];
+    }),
+  ]),
+);
+
+export const fixtures: Fixture[] = [
+  { code: "IC-01", name: "Island Cooler", type: "Cooler", subtype: "Four-sided island", parentTypeId: "cooler", dimensions: "1,200 × 900 × 1,850 mm", eft: 6.4, status: "Active", imageUrl: "/fixtures/cooler-familymart.jpg", applicableFormatIds: storeFormats.map(format => format.id) },
+  { code: "CW-04", name: "Cooler Wall 4S", type: "Cooler", subtype: "Four-shelf wall", parentTypeId: "cooler", dimensions: "1,200 × 650 × 2,100 mm", eft: 5.2, status: "Active", imageUrl: "/fixtures/cooler-familymart.jpg", applicableFormatIds: ["legacy", "inmotion", "fresh-plus"] },
+  { code: "CW-05", name: "Cooler Wall 5S", type: "Cooler", subtype: "Five-shelf wall", parentTypeId: "cooler", dimensions: "1,200 × 650 × 2,250 mm", eft: 6.1, status: "Active", imageUrl: "/fixtures/cooler-doors-santorin.jpg", applicableFormatIds: ["legacy", "curio-city", "fresh-plus"] },
+  { code: "CW-06", name: "Cooler Wall 6S", type: "Cooler", subtype: "Six-shelf wall", parentTypeId: "cooler", dimensions: "1,200 × 650 × 2,400 mm", eft: 7, status: "Review", imageUrl: "/fixtures/cooler-doors-santorin.jpg", applicableFormatIds: ["inmotion", "tech-express"] },
+  { code: "SC-SL", name: "Standalone Cooler Slim", type: "Cooler", subtype: "Single-door slimline", parentTypeId: "cooler", dimensions: "650 × 700 × 2,050 mm", eft: 3.4, status: "Active", imageUrl: "/fixtures/cooler-doors-santorin.jpg", applicableFormatIds: ["inmotion", "tech-express", "curio-city"] },
+  { code: "WB-12", name: "Wall Bay 1200", type: "Wall Bay", subtype: "Standard wall bay", parentTypeId: "wall-bay", dimensions: "1,200 × 450 × 2,100 mm", eft: 2.9, status: "Active", imageUrl: "/fixtures/store-shelving.jpg", applicableFormatIds: storeFormats.map(format => format.id) },
+  { code: "TU-06", name: "Till Unit", type: "Till Unit", subtype: "", dimensions: "1,800 × 500 × 950 mm", eft: 1.8, status: "Active", imageUrl: "/fixtures/cash-registers.jpg", applicableFormatIds: ["legacy", "funky-pigeon", "fresh-plus"] },
+  { code: "GON-09", name: "Gondola 900", type: "Gondola", subtype: "Double-sided gondola", parentTypeId: "gondola", dimensions: "900 × 900 × 1,800 mm", eft: 4.2, status: "Active", imageUrl: "/fixtures/gondola-spar.jpg", applicableFormatIds: ["legacy", "inmotion", "tech-express", "bookshop", "curio-city"] },
+];
+
+export const fixturePlanogramLayouts: Record<string, FixturePlanogramLayout> = {
+  "IC-01": { usableWidthMm: 1_080, shelves: Array.from({ length: 4 }, () => ({ clearHeightMm: 360 })) },
+  "CW-04": { usableWidthMm: 1_080, shelves: Array.from({ length: 4 }, () => ({ clearHeightMm: 390 })) },
+  "CW-05": { usableWidthMm: 1_080, shelves: Array.from({ length: 5 }, () => ({ clearHeightMm: 340 })) },
+  "CW-06": { usableWidthMm: 1_080, shelves: Array.from({ length: 6 }, () => ({ clearHeightMm: 310 })) },
+  "SC-SL": { usableWidthMm: 560, shelves: Array.from({ length: 5 }, () => ({ clearHeightMm: 330 })) },
+  "WB-12": { usableWidthMm: 1_080, shelves: Array.from({ length: 5 }, () => ({ clearHeightMm: 360 })) },
+  "GON-09": { usableWidthMm: 810, shelves: Array.from({ length: 4 }, () => ({ clearHeightMm: 350 })) },
+  "TU-06": { usableWidthMm: 1_620, shelves: Array.from({ length: 3 }, () => ({ clearHeightMm: 260 })) },
+};
 
 export const compatibilityFixtureExamples: Fixture[] = [
   { code: "CS-06", name: "Countertop Chiller", type: "Cooler", subtype: "Six-canopy countertop", parentTypeId: "cooler", dimensions: "600 × 600 × 900 mm", eft: 1.2, status: "Active" },
@@ -369,6 +478,30 @@ const storeRoster = [
   region,
 }));
 
+// Preserve the roster's store-segment field while mapping mock stores to the seven existing merchandising formats.
+const storeFormatByStoreId: Record<string, string> = {
+  "0876": "legacy",
+  "1489": "curio-city",
+  "1024": "inmotion",
+  "0542": "legacy",
+  "0931": "inmotion",
+  "0219": "legacy",
+  "1105": "inmotion",
+  "0348": "bookshop",
+  "0762": "funky-pigeon",
+  "1502": "fresh-plus",
+  "0112": "tech-express",
+  "0645": "tech-express",
+  "0821": "curio-city",
+  "0493": "legacy",
+  "0714": "inmotion",
+  "0916": "tech-express",
+  "0326": "bookshop",
+  "0519": "inmotion",
+  "0148": "fresh-plus",
+  "1234": "funky-pigeon",
+};
+
 export const skus: PlanningSku[] = ([
   { id: "sku-101", code: "501482", description: "SoundPod wireless earbuds", areaId: "personal-audio", brand: "SoundPod" },
   { id: "sku-102", code: "501510", description: "SoundPod USB-C earphones", areaId: "personal-audio", brand: "SoundPod" },
@@ -395,6 +528,9 @@ export const skus: PlanningSku[] = ([
   { id: "sku-123", code: "620128", description: "Fold-flat wireless headset", areaId: "headphones", brand: "SoundPod" },
 ]).map((sku, index) => ({
   ...sku,
+  widthMm: [68, 72, 62, 88, 94, 102, 66, 68, 62, 70, 70, 138, 74, 64, 70, 58, 58, 72, 94, 148, 66, 112, 126][index] ?? 80,
+  heightMm: [92, 104, 158, 132, 148, 166, 218, 218, 178, 220, 220, 250, 252, 178, 220, 158, 158, 168, 142, 264, 162, 176, 184][index] ?? 160,
+  packageType: (["blister", "blister", "blister", "box", "box", "box", "bottle", "bottle", "bottle", "bottle", "bottle", "pouch", "bottle", "bottle", "bottle", "can", "can", "can", "box", "pouch", "blister", "blister", "blister"] as const)[index] ?? "box",
   sales: Math.round((0.4 + ((index * 7) % 38) / 10) * 10) / 10,
   units: 3500 + ((index * 1279) % 24000),
 }));
@@ -439,6 +575,7 @@ export const initialStores: PlanningStore[] = storeRoster.map(store => {
   }));
   return {
     ...store,
+    storeFormatId: storeFormatByStoreId[store.id] ?? storeFormats[0].id,
     eftByBlock,
     currentGradeByBlock: Object.fromEntries(Object.entries(eftByBlock).map(([blockId, eft]) => [blockId, gradeForEft(Number(eft))])),
   };
